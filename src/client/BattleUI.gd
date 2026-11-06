@@ -22,6 +22,7 @@ var _names: Dictionary = {}
 var _sides: Dictionary = {}
 var _energy: Array[int] = [0, 0]
 var _cards: Array[TroopCard] = []
+var _stage: BattleStage
 var _input_locked: bool = true
 var _pending_skill: int = -1
 var _draft_picks: Array[int] = []
@@ -93,9 +94,8 @@ func _ready() -> void:
 		_cards.append(null)
 	_bench_labels = [null, null]
 	_add_side_row(field, CombatTypes.other_side(viewer_side))
-	var spacer: Control = Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	field.add_child(spacer)
+	_stage = BattleStage.new(viewer_side)
+	field.add_child(_stage)
 	_add_side_row(field, viewer_side)
 
 	var actions: HBoxContainer = HBoxContainer.new()
@@ -258,6 +258,7 @@ func reset() -> void:
 	_draft_buttons.clear()
 	for card in _cards:
 		card.clear_card()
+	_stage.clear()
 	_log.clear()
 	_result_panel.visible = false
 	_standby_panel.visible = false
@@ -294,6 +295,7 @@ func play_event(e: Dictionary) -> void:
 			card.set_cr(float(d["cr"]))
 			card.set_effects([], [])
 			card.float_text("Enter", Color.WHITE)
+			_stage.place(int(d["side"]), int(d["slot"]), actor, String(d["troop_id"]), true)
 			_log_line("%s enters the field (%d%% CR)." % [_cn(actor), roundi(value)])
 			delay = 0.3
 		CombatTypes.EventType.TIMELINE_ADVANCED:
@@ -320,6 +322,8 @@ func play_event(e: Dictionary) -> void:
 			var c2: TroopCard = _card_for(actor)
 			if c2 != null:
 				c2.flash(Color(1.6, 1.5, 0.8))
+			var hostile: bool = target != -1 and _sides.get(target, -1) != _sides.get(actor, -1)
+			_stage.play(actor, &"attack" if hostile else &"cast")
 			delay = 0.25
 		CombatTypes.EventType.OVERDRIVE_ACTIVATED:
 			_float(actor, "OVERDRIVE", Color("#ffd24a"))
@@ -328,6 +332,7 @@ func play_event(e: Dictionary) -> void:
 			if c3 != null:
 				c3.update_hp(int(d["hp_after"]), int(d["shield_after"]))
 				c3.flash(Color(1.8, 0.6, 0.6))
+			_stage.play(target, &"hit")
 			var crit: bool = bool(d["crit"])
 			_float(target, ("-%d!" if crit else "-%d") % int(value), Color("#ff6b6b") if not crit else Color("#ffb347"))
 			var src: String = "Burn" if String(d["tag"]) == "dot" else _n(actor)
@@ -339,6 +344,7 @@ func play_event(e: Dictionary) -> void:
 			if c4 != null:
 				c4.update_hp(int(d["hp_after"]))
 			_float(target, "+%d" % int(value), Color("#6be38a"))
+			_stage.play(target, &"buff")
 			_log_line("  %s heals %s for [color=#80ff9a]%d[/color]" % [_cn(actor), _cn(target), int(value)])
 			delay = 0.2
 		CombatTypes.EventType.EFFECT_APPLIED:
@@ -381,6 +387,7 @@ func play_event(e: Dictionary) -> void:
 			var c6: TroopCard = _card_for(actor)
 			if c6 != null:
 				c6.modulate = Color(1, 1, 1, 0.35)
+			_stage.play(actor, &"death")
 			_log_line("[color=#ff5050]%s is knocked out![/color]" % _cn(actor))
 			delay = 0.45
 		CombatTypes.EventType.EXTRA_TURN:
@@ -441,8 +448,12 @@ func _refresh_field() -> void:
 			var uid: int = int(active[slot]) if slot < active.size() else -1
 			if uid < 0 or not troops.has(uid):
 				card.clear_card()
+				_stage.clear_slot(side, slot)
 				continue
 			var t: Dictionary = troops[uid]
+			_stage.place(side, slot, uid, String(t["troop_id"]), false)
+			if not bool(t["alive"]):
+				_stage.model_for(uid).set_dead()
 			card.bind(uid, String(t["name"]), int(t["archetype"]))
 			card.set_hp(int(t["hp"]), int(t["max_hp"]), int(t["shield"]))
 			card.set_cr(float(t["cr"]))
