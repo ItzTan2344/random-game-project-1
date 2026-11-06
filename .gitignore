@@ -10,3 +10,5 @@ build/
 # Tool state
 .remember/
 .claude/
+# UI capture output
+renders/
