@@ -21,7 +21,7 @@ func choose_draft(squad: Array[TroopData]) -> Array[int]:
 	var order: Array[int] = []
 	for i in squad.size():
 		var d: TroopData = squad[i]
-		scores.append(d.max_hp * 0.1 + d.attack + d.defense * 0.5 + d.speed * 2.0 + rng.randf() * 60.0)
+		scores.append(d.max_hp * 0.1 + maxf(d.attack, d.special_attack) + (d.defense + d.special_defense) * 0.25 + d.speed * 2.0 + rng.randf() * 60.0)
 		order.append(i)
 	order.sort_custom(func(a: int, b: int) -> bool: return scores[a] > scores[b])
 	var picks: Array[int] = []
@@ -31,11 +31,25 @@ func choose_draft(squad: Array[TroopData]) -> Array[int]:
 	return picks
 
 
-func choose_action(engine: CombatEngine) -> CombatAction:
-	var actor: TroopInstance = engine.state.current_actor
+## One action per non-stunned active; tracks bench picks and Team Energy so the pair stays legal.
+func choose_actions(engine: CombatEngine) -> Dictionary:
+	var out: Dictionary = {}
+	var used_benches: Array[int] = []
+	var energy: int = engine.state.team(side).energy
+	for actor in engine.acting_troops(side):
+		var action: CombatAction = _choose_action(engine, actor, used_benches, energy)
+		if action.kind == CombatTypes.ActionKind.SWITCH:
+			used_benches.append(action.bench_index)
+		elif action.overdrive:
+			energy -= actor.data.skills[action.skill_index].overdrive_cost
+		out[actor.uid] = action
+	return out
+
+
+func _choose_action(engine: CombatEngine, actor: TroopInstance, used_benches: Array[int], energy: int) -> CombatAction:
 	var team: TeamState = engine.state.team(side)
 	if actor.hp_ratio() < LOW_HP_SWITCH and engine.can_switch(actor):
-		var bench: int = _healthiest_bench(team)
+		var bench: int = _healthiest_bench(team, used_benches)
 		if bench != -1 and team.bench[bench].hp_ratio() > HEALTHY_BENCH and rng.randf() < 0.6:
 			return CombatAction.switch_to(bench)
 	var legal: Array[int] = engine.legal_skills(actor)
@@ -45,14 +59,12 @@ func choose_action(engine: CombatEngine) -> CombatAction:
 			choice = legal[i]
 			break
 	var skill: SkillData = actor.data.skills[choice]
-	var overdrive: bool = skill.overdrive_kind != CombatTypes.OverdriveKind.NONE \
-		and team.energy >= skill.overdrive_cost \
-		and (skill.slot == CombatTypes.SkillSlot.S3 or team.energy >= CombatTypes.ENERGY_CAP - 2)
+	var overdrive: bool = skill.overdrive_kind != CombatTypes.OverdriveKind.NONE 		and energy >= skill.overdrive_cost 		and (skill.slot == CombatTypes.SkillSlot.S3 or energy >= CombatTypes.ENERGY_CAP - 2)
 	return CombatAction.cast(choice, _pick_target(engine, actor, choice), overdrive)
 
 
 func choose_replacement(engine: CombatEngine) -> int:
-	return _healthiest_bench(engine.state.team(side))
+	return _healthiest_bench(engine.state.team(side), [])
 
 
 func _is_useful(engine: CombatEngine, actor: TroopInstance, skill: SkillData) -> bool:
@@ -82,9 +94,11 @@ func _pick_target(engine: CombatEngine, actor: TroopInstance, skill_index: int) 
 	return best
 
 
-func _healthiest_bench(team: TeamState) -> int:
+func _healthiest_bench(team: TeamState, excluded: Array[int]) -> int:
 	var best: int = -1
 	for i in team.ready_bench_indices():
+		if excluded.has(i):
+			continue
 		if best == -1 or team.bench[i].hp_ratio() > team.bench[best].hp_ratio():
 			best = i
 	return best

@@ -27,19 +27,37 @@ func _run(client: BattleClient) -> void:
 	await _until(func() -> bool: return _my_turn(ui))
 	await _frames(30)
 	_shot("3_battle")
-	var skills: Array = ui.snapshot["legal"]["skills"]
+	var legal: Dictionary = ui.snapshot["legal"]
+	var uids: Array = legal.keys()
+	var first_uid: int = int(uids[0])
+	ui.select_troop(first_uid)
+	var skills: Array = legal[first_uid]["skills"]
+	var target_skill_idx: int = -1
 	for i in skills.size():
 		if not (skills[i]["targets"] as Array).is_empty():
+			target_skill_idx = i
 			ui._on_skill_pressed(i)
 			break
 	await _frames(10)
 	_shot("4_targeting")
-	# Play out the match: first ready skill on its first target, mid-battle shot after a few turns.
+	if target_skill_idx != -1:
+		var targets: Array = skills[target_skill_idx]["targets"]
+		ui._on_card_clicked(int(targets[0]))
+	else:
+		_pick_first_legal_action(ui, first_uid)
+	for uid in legal:
+		var uid_int: int = int(uid)
+		if not ui._chosen_actions.has(uid_int):
+			ui.select_troop(uid_int)
+			_pick_first_legal_action(ui, uid_int)
+	await _frames(10)
+	ui._on_lock_actions_pressed()
+	# Play out the match: pick actions for all troops, lock in, mid-battle shot after a few turns.
 	ui.playback_speed = 3.0
 	var turns: int = 0
 	var standby_shot: bool = false
-	while int(ui.snapshot["phase"]) != CombatTypes.Phase.FINISHED:
-		await _until(func() -> bool: return _my_turn(ui) or int(ui.snapshot["phase"]) == CombatTypes.Phase.FINISHED or (ui._standby_panel.visible and not ui._input_locked))
+	while int(ui.snapshot.get("phase", -1)) != CombatTypes.Phase.FINISHED:
+		await _until(func() -> bool: return _my_turn(ui) or int(ui.snapshot.get("phase", -1)) == CombatTypes.Phase.FINISHED or (ui._standby_panel.visible and not ui._input_locked))
 		if ui._standby_panel.visible:
 			if not standby_shot:
 				standby_shot = true
@@ -50,25 +68,53 @@ func _run(client: BattleClient) -> void:
 		if not _my_turn(ui):
 			continue
 		turns += 1
-		if turns == 6:
+		if turns == 4:
 			ui._toggle_log()
 			await _frames(5)
 			_shot("5_midbattle")
 			ui._toggle_log()
-		var legal: Array = ui.snapshot["legal"]["skills"]
-		for i in range(legal.size() - 1, -1, -1):
-			if bool(legal[i]["ready"]):
-				var targets: Array = legal[i]["targets"]
-				ui._send_skill(i, int(targets[0]) if not targets.is_empty() else -1)
-				break
+		var leg: Dictionary = ui.snapshot.get("legal", {})
+		for uid in leg:
+			var uid_int: int = int(uid)
+			ui.select_troop(uid_int)
+			_pick_first_legal_action(ui, uid_int)
+		ui._on_lock_actions_pressed()
 		await _frames(2)
 	await _frames(30)
 	_shot("6_result")
 	quit(0)
 
 
+func _pick_first_legal_action(ui: BattleUI, uid: int) -> void:
+	var entry: Dictionary = ui.snapshot["legal"][uid]
+	var skills: Array = entry["skills"]
+	for i in range(skills.size() - 1, -1, -1):
+		if bool(skills[i]["ready"]):
+			var targets: Array = skills[i]["targets"]
+			if targets.is_empty():
+				ui._choose_skill(uid, i, -1)
+				return
+			else:
+				ui._choose_skill(uid, i, int(targets[0]))
+				return
+	if bool(entry["can_switch"]):
+		var bench: Array = entry["bench"]
+		for b_idx in bench:
+			if not ui._is_bench_taken_by_other(int(b_idx), uid):
+				ui._on_switch_pressed(int(b_idx))
+				return
+
+
 func _my_turn(ui: BattleUI) -> bool:
-	return not ui._input_locked and int(ui.snapshot.get("phase", -1)) == CombatTypes.Phase.ACTION_WAIT and not (ui.snapshot.get("legal", {}) as Dictionary).is_empty()
+	if ui._input_locked:
+		return false
+	if int(ui.snapshot.get("phase", -1)) != CombatTypes.Phase.ACTION_WAIT:
+		return false
+	var leg: Dictionary = ui.snapshot.get("legal", {})
+	if leg.is_empty():
+		return false
+	var mine_locked: bool = bool(ui.snapshot.get("teams", [{}, {}])[ui.viewer_side].get("actions_locked", false))
+	return not mine_locked
 
 
 func _until(cond: Callable) -> void:

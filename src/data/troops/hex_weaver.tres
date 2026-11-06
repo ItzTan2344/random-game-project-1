@@ -13,7 +13,8 @@ chance = 0.35
 [sub_resource type="Resource" id="Resource_5xjmx"]
 script = ExtResource("2_a6c3h")
 skill_name = "Hex Bolt"
-description = "Strike one enemy (100% ATK); 35% chance to lower ATK by 25% for 2 turns."
+description = "Strike one enemy (100% SPA); 35% chance to lower ATK by 25% for 2 turns."
+special = true
 attack_scaling = 1.0
 effects = Array[ExtResource("3_ywrvc")]([SubResource("Resource_gdfc0")])
 energy_gain = 1
@@ -23,38 +24,35 @@ dual_attack_chance = 0.05
 script = ExtResource("3_ywrvc")
 kind = 1
 duration = 1
-chance = 0.65
+chance = 0.5
 
 [sub_resource type="Resource" id="Resource_h2q50"]
 script = ExtResource("2_a6c3h")
 skill_name = "Binding Sigil"
-description = "Strike one enemy (80% ATK); 65% chance to Stun for 1 turn."
+description = "Strike one enemy (80% SPA); 50% chance to Stun for 1 turn."
 slot = 1
 cooldown = 3
+special = true
 attack_scaling = 0.8
 effects = Array[ExtResource("3_ywrvc")]([SubResource("Resource_voayq")])
 
 [sub_resource type="Resource" id="Resource_6l6f1"]
 script = ExtResource("3_ywrvc")
-kind = 5
-magnitude = -25.0
-
-[sub_resource type="Resource" id="Resource_gw7gf"]
-script = ExtResource("3_ywrvc")
-stat = 2
+stat = 4
 magnitude = -0.2
 duration = 2
 
-[sub_resource type="Resource" id="Resource_17kq0"]
+[sub_resource type="Resource" id="Resource_gw7gf"]
 script = ExtResource("2_a6c3h")
 skill_name = "Unravel"
-description = "Hit all enemies (70% ATK), push their CR back 25% and lower SPD by 20% for 2 turns.
-Overdrive (10): ignore Effect Resistance."
+description = "Hit all enemies (70% SPA) and lower their SPE by 20% for 2 turns.
+Overdrive (10): all effects are guaranteed."
 slot = 2
 cooldown = 4
 target_type = 1
+special = true
 attack_scaling = 0.7
-effects = Array[ExtResource("3_ywrvc")]([SubResource("Resource_6l6f1"), SubResource("Resource_gw7gf")])
+effects = Array[ExtResource("3_ywrvc")]([SubResource("Resource_6l6f1")])
 overdrive_kind = 1
 overdrive_cost = 10
 
@@ -63,11 +61,12 @@ script = ExtResource("1_1bd8b")
 troop_id = &"hex_weaver"
 display_name = "Hex Weaver"
 archetype = 1
-max_hp = 900
-attack = 160
+max_hp = 960
+attack = 100
+special_attack = 182
 defense = 95
+special_defense = 112
 speed = 114
 crit_chance = 0.1
 effectiveness = 0.45
-effect_resistance = 0.2
-skills = Array[ExtResource("2_a6c3h")]([SubResource("Resource_5xjmx"), SubResource("Resource_h2q50"), SubResource("Resource_17kq0")])
+skills = Array[ExtResource("2_a6c3h")]([SubResource("Resource_5xjmx"), SubResource("Resource_h2q50"), SubResource("Resource_gw7gf")])

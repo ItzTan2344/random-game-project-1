@@ -1,7 +1,7 @@
 class_name CombatEngine
 extends RefCounted
 ## Authoritative, deterministic, zero-yield combat state machine.
-## PREVIEW -> TURN_START -> ACTION_WAIT -> RESOLUTION -> TURN_END -> CHECK_WIN (-> STANDBY) -> ...
+## PREVIEW -> ACTION_WAIT (both sides pick an action for every active troop) -> RESOLUTION (Speed order) -> CHECK_WIN (-> STANDBY) -> ...
 ## Every public call runs synchronously until input is needed and returns the ordered event log.
 
 var state: CombatState = CombatState.new()
@@ -10,7 +10,6 @@ var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _log: Array[CombatEvent] = []
 var _trigger_queue: Array[Dictionary] = []
 var _next_uid: int = 1
-var _pending_switch_cd_slot: int = -1
 
 
 func _init(seed_value: int = 0) -> void:
@@ -53,22 +52,25 @@ func submit_draft(side: int, picks: Array[int]) -> Array[CombatEvent]:
 	return _flush()
 
 
-func submit_action(side: int, action: CombatAction) -> Array[CombatEvent]:
-	if state.phase != CombatTypes.Phase.ACTION_WAIT or state.current_actor == null:
-		return _reject(side, "Not waiting for an action.")
-	var actor: TroopInstance = state.current_actor
-	if actor.side != side:
-		return _reject(side, "Not your turn.")
-	var err: String = validate_action(actor, action)
+## `actions`: troop uid -> CombatAction, one per non-stunned living active of `side`. Locks the side;
+## once both sides are locked the round resolves in Speed order.
+func submit_actions(side: int, actions: Dictionary) -> Array[CombatEvent]:
+	if state.phase != CombatTypes.Phase.ACTION_WAIT:
+		return _reject(side, "Not waiting for actions.")
+	if side < 0 or side > 1:
+		return _reject(side, "Invalid side.")
+	var team: TeamState = state.team(side)
+	if team.actions_locked:
+		return _reject(side, "Actions already locked.")
+	var err: String = validate_actions(side, actions)
 	if err != "":
 		return _reject(side, err)
-	state.phase = CombatTypes.Phase.RESOLUTION
-	if action.kind == CombatTypes.ActionKind.SWITCH:
-		_do_switch(actor, action.bench_index, true)
-	else:
-		_do_skill(actor, action)
-	_turn_end(actor)
-	_advance()
+	team.actions = actions.duplicate()
+	team.actions_locked = true
+	_emit(CombatTypes.EventType.ACTIONS_LOCKED, -1, -1, 0.0, {"side": side})
+	if state.team(0).actions_locked and state.team(1).actions_locked:
+		_resolve_round()
+		_advance()
 	return _flush()
 
 
@@ -88,7 +90,7 @@ func submit_replacement(side: int, slot: int, bench_index: int) -> Array[CombatE
 	team.bench[bench_index] = fallen
 	team.pending_slots.erase(slot)
 	_emit(CombatTypes.EventType.REPLACED, incoming.uid, fallen.uid if fallen != null else -1, float(slot), {"side": side, "slot": slot, "bench_index": bench_index, "name": incoming.data.display_name})
-	_enter_field(incoming, slot, CombatTypes.SWITCH_ENTRY_CR)
+	_enter_field(incoming, slot)
 	_process_triggers()
 	if state.teams[0].pending_slots.is_empty() and state.teams[1].pending_slots.is_empty():
 		_advance()
@@ -98,6 +100,41 @@ func submit_replacement(side: int, slot: int, bench_index: int) -> Array[CombatE
 # =====================================================================
 # Queries (used by AI, UI snapshot, and validation)
 # =====================================================================
+
+## Troops of `side` that must be given an action this round (stunned ones lose theirs).
+func acting_troops(side: int) -> Array[TroopInstance]:
+	var out: Array[TroopInstance] = []
+	for t in state.actives(side):
+		if not t.is_stunned():
+			out.append(t)
+	return out
+
+
+func validate_actions(side: int, actions: Dictionary) -> String:
+	var team: TeamState = state.team(side)
+	var need: Array[TroopInstance] = acting_troops(side)
+	if actions.size() != need.size():
+		return "Choose an action for every active troop."
+	var energy: int = team.energy
+	var benches: Array[int] = []
+	for t in need:
+		var action: CombatAction = actions.get(t.uid) as CombatAction
+		if action == null:
+			return "Choose an action for every active troop."
+		var err: String = validate_action(t, action)
+		if err != "":
+			return err
+		if action.kind == CombatTypes.ActionKind.SKILL and action.overdrive:
+			energy -= t.data.skills[action.skill_index].overdrive_cost
+			if energy < 0:
+				return "Not enough Team Energy."
+		var switching: bool = action.kind == CombatTypes.ActionKind.SWITCH or t.data.skills[action.skill_index].self_switch_after
+		if switching and action.bench_index != -1:
+			if benches.has(action.bench_index):
+				return "Both troops can't switch to the same bench troop."
+			benches.append(action.bench_index)
+	return ""
+
 
 func validate_action(actor: TroopInstance, action: CombatAction) -> String:
 	var team: TeamState = state.team(actor.side)
@@ -153,15 +190,10 @@ func valid_targets(actor: TroopInstance, skill_index: int) -> Array[int]:
 	return out
 
 
-## Turn order preview: living actives sorted by time-to-act.
+## Speed order of the living actives (highest first; ties go to the lower uid).
 func predicted_order() -> Array[int]:
 	var list: Array[TroopInstance] = state.all_actives()
-	list.sort_custom(func(a: TroopInstance, b: TroopInstance) -> bool:
-		var ta: float = CombatMath.time_to_full(a.cr, a.get_stat(CombatTypes.Stat.SPEED))
-		var tb: float = CombatMath.time_to_full(b.cr, b.get_stat(CombatTypes.Stat.SPEED))
-		if absf(ta - tb) > CombatTypes.EPSILON:
-			return ta < tb
-		return _wins_tie(a, b))
+	list.sort_custom(_faster)
 	var out: Array[int] = []
 	for t in list:
 		out.append(t.uid)
@@ -199,6 +231,7 @@ func get_snapshot(viewer: int = -1) -> Dictionary:
 			"active": active_ids,
 			"bench": bench_ids,
 			"energy": team.energy,
+			"actions_locked": team.actions_locked,
 			"slot_switch_cd": team.slot_switch_cd.duplicate(),
 			"pending_slots": team.pending_slots.duplicate(),
 		})
@@ -209,15 +242,16 @@ func get_snapshot(viewer: int = -1) -> Dictionary:
 		"frenzy_stacks": state.frenzy_stacks(),
 		"turn": state.turn_count,
 		"winner": state.winner,
-		"current_actor": state.current_actor.uid if state.current_actor != null else -1,
 		"teams": teams,
 		"troops": troops,
 		"timeline": predicted_order(),
 		"legal": {},
 	}
-	var actor: TroopInstance = state.current_actor
-	if state.phase == CombatTypes.Phase.ACTION_WAIT and actor != null and (viewer == -1 or viewer == actor.side):
-		snap["legal"] = _legal_snapshot(actor)
+	if state.phase == CombatTypes.Phase.ACTION_WAIT:
+		for side in 2:
+			if viewer == -1 or viewer == side:
+				for t in acting_troops(side):
+					snap["legal"][t.uid] = _legal_snapshot(t)
 	return snap
 
 
@@ -241,67 +275,42 @@ func _start_battle() -> void:
 	_emit(CombatTypes.EventType.BATTLE_STARTED)
 	for side in 2:
 		for slot in CombatTypes.ACTIVE_SLOTS:
-			_enter_field(state.team(side).active[slot], slot, 0.0)
+			_enter_field(state.team(side).active[slot], slot)
 	_process_triggers()
 	_advance()
 
 
-## Runs turns until the engine needs input (ACTION_WAIT / STANDBY) or the match ends.
+## Starts rounds until input is needed (ACTION_WAIT / STANDBY) or the match ends.
 func _advance() -> void:
 	while true:
 		if _check_win():
 			return
 		if _request_standby():
 			return
-		var actor: TroopInstance = _next_actor()
-		if actor == null:
-			push_error("CombatEngine: no actor available but no winner.")
+		_begin_round()
+		if not (state.team(0).actions_locked and state.team(1).actions_locked):
 			return
-		_turn_start(actor)
-		if not actor.is_alive():
-			_turn_end(actor)
-			continue
-		if actor.is_stunned():
-			_emit(CombatTypes.EventType.TURN_SKIPPED, actor.uid, -1, 0.0, {"reason": "stun"})
-			_turn_end(actor)
-			continue
-		state.phase = CombatTypes.Phase.ACTION_WAIT
-		_emit(CombatTypes.EventType.ACTION_REQUESTED, actor.uid, -1, 0.0, {"side": actor.side})
-		return
+		_resolve_round()
 
 
-func _next_actor() -> TroopInstance:
-	if state.extra_turn_uid != -1:
-		var bonus: TroopInstance = state.get_troop(state.extra_turn_uid)
-		state.extra_turn_uid = -1
-		if state.is_active(bonus):
-			bonus.cr = CombatTypes.CR_MAX
-			_emit(CombatTypes.EventType.EXTRA_TURN, bonus.uid)
-			return bonus
-	var candidates: Array[TroopInstance] = state.all_actives()
-	if candidates.is_empty():
-		return null
-	var best: TroopInstance = null
-	var best_time: float = INF
-	for t in candidates:
-		var tt: float = CombatMath.time_to_full(t.cr, t.get_stat(CombatTypes.Stat.SPEED))
-		if best == null or tt < best_time - CombatTypes.EPSILON or (absf(tt - best_time) <= CombatTypes.EPSILON and _wins_tie(t, best)):
-			best = t
-			best_time = tt
-	if best_time > 0.0:
-		for t in candidates:
-			t.cr = minf(CombatTypes.CR_MAX, t.cr + t.get_stat(CombatTypes.Stat.SPEED) * best_time)
-		state.timeline_time += best_time
-	best.cr = CombatTypes.CR_MAX
-	var cr_map: Dictionary = {}
-	for t in candidates:
-		cr_map[t.uid] = t.cr
-	_emit(CombatTypes.EventType.TIMELINE_ADVANCED, best.uid, -1, best_time, {"cr": cr_map, "time": state.timeline_time})
-	_update_cycle()
-	return best
+## Opens action selection. A side with nothing to choose (all stunned) is locked automatically.
+func _begin_round() -> void:
+	state.phase = CombatTypes.Phase.ACTION_WAIT
+	var pending: Array = [[], []]
+	for team in state.teams:
+		team.actions.clear()
+		var need: Array[TroopInstance] = acting_troops(team.side)
+		team.actions_locked = need.is_empty()
+		for t in state.actives(team.side):
+			if t.is_stunned():
+				_emit(CombatTypes.EventType.TURN_SKIPPED, t.uid, -1, 0.0, {"reason": "stun"})
+		for t in need:
+			pending[team.side].append(t.uid)
+	_emit(CombatTypes.EventType.ACTION_REQUESTED, -1, -1, float(state.cycle), {"pending": pending})
 
 
-func _wins_tie(a: TroopInstance, b: TroopInstance) -> bool:
+## Higher Speed first; ties go to the lower uid.
+func _faster(a: TroopInstance, b: TroopInstance) -> bool:
 	var sa: float = a.get_stat(CombatTypes.Stat.SPEED)
 	var sb: float = b.get_stat(CombatTypes.Stat.SPEED)
 	if absf(sa - sb) > CombatTypes.EPSILON:
@@ -309,47 +318,74 @@ func _wins_tie(a: TroopInstance, b: TroopInstance) -> bool:
 	return a.uid < b.uid
 
 
-func _update_cycle() -> void:
-	var new_cycle: int = CombatMath.cycle_at(state.timeline_time)
-	if new_cycle <= state.cycle:
-		return
-	var old_stacks: int = state.frenzy_stacks()
-	state.cycle = new_cycle
-	_emit(CombatTypes.EventType.CYCLE_ADVANCED, -1, -1, float(new_cycle))
-	var stacks: int = state.frenzy_stacks()
-	if stacks != old_stacks:
-		_emit(CombatTypes.EventType.FRENZY_CHANGED, -1, -1, float(stacks), {
-			"damage_mult": CombatMath.frenzy_damage_mult(new_cycle),
-			"heal_mult": CombatMath.frenzy_heal_mult(new_cycle),
-		})
+## Runs every chosen action in Speed order (ACT_FIRST overdrives jump the queue), then ends the round.
+func _resolve_round() -> void:
+	state.phase = CombatTypes.Phase.RESOLUTION
+	var queue: Array[TroopInstance] = []
+	var first: Dictionary = {}
+	for team in state.teams:
+		for uid: int in team.actions:
+			var t: TroopInstance = state.get_troop(uid)
+			var a: CombatAction = team.actions[uid]
+			queue.append(t)
+			first[uid] = a.kind == CombatTypes.ActionKind.SKILL and a.overdrive \
+				and t.data.skills[a.skill_index].overdrive_kind == CombatTypes.OverdriveKind.ACT_FIRST
+	queue.sort_custom(func(a: TroopInstance, b: TroopInstance) -> bool:
+		if first[a.uid] != first[b.uid]:
+			return first[a.uid]
+		return _faster(a, b))
+	var order: Array[int] = []
+	for t in queue:
+		order.append(t.uid)
+	_emit(CombatTypes.EventType.ROUND_STARTED, -1, -1, float(state.cycle), {"order": order})
+	for t in queue:
+		if state.team(0).is_wiped() or state.team(1).is_wiped():
+			break
+		if state.is_active(t):
+			_act(t, state.team(t.side).actions[t.uid])
+	_round_end()
 
 
-func _turn_start(actor: TroopInstance) -> void:
-	state.phase = CombatTypes.Phase.TURN_START
+func _act(actor: TroopInstance, action: CombatAction) -> void:
 	state.turn_count += 1
-	state.current_actor = actor
-	state.current_slot = state.team(actor.side).slot_of(actor)
-	_pending_switch_cd_slot = -1
-	actor.cr = 0.0
-	_emit(CombatTypes.EventType.TURN_STARTED, actor.uid, -1, float(state.turn_count), {"cycle": state.cycle, "side": actor.side, "slot": state.current_slot})
-	for e: ActiveEffect in actor.effects.duplicate():
-		if e.kind == CombatTypes.EffectKind.DOT and actor.is_alive():
-			var dmg: int = maxi(1, roundi(float(e.value) * CombatMath.frenzy_damage_mult(state.cycle)))
-			_apply_damage(null, actor, dmg, false, "dot")
-	_process_triggers()
-
-
-func _turn_end(actor: TroopInstance) -> void:
-	state.phase = CombatTypes.Phase.TURN_END
-	actor.tick_cooldowns()
-	for e in actor.tick_effects(state.turn_count):
-		_emit(CombatTypes.EventType.EFFECT_EXPIRED, actor.uid, -1, 0.0, {"kind": e.kind, "stat": e.stat})
-	if state.current_slot >= 0:
-		var team: TeamState = state.team(actor.side)
-		team.slot_switch_cd[state.current_slot] = maxi(0, team.slot_switch_cd[state.current_slot] - 1)
-		if _pending_switch_cd_slot == state.current_slot:
-			team.slot_switch_cd[state.current_slot] = CombatTypes.SWITCH_COOLDOWN_TURNS
+	state.last_actor = actor
+	_emit(CombatTypes.EventType.TURN_STARTED, actor.uid, -1, float(state.turn_count), {"cycle": state.cycle, "side": actor.side, "slot": state.team(actor.side).slot_of(actor)})
+	if action.kind == CombatTypes.ActionKind.SWITCH:
+		if state.team(actor.side).is_bench_ready(action.bench_index):
+			_do_switch(actor, action.bench_index, true)
+	else:
+		# A target that fell earlier this round is replaced by the first legal one.
+		if actor.data.skills[action.skill_index].needs_target() and not valid_targets(actor, action.skill_index).has(action.target_uid):
+			action.target_uid = _default_target(actor, action.skill_index)
+		_do_skill(actor, action)
 	_emit(CombatTypes.EventType.TURN_ENDED, actor.uid)
+
+
+## DoTs tick, cooldowns and effect durations count down, then the next round number begins.
+func _round_end() -> void:
+	state.phase = CombatTypes.Phase.TURN_END
+	for t in state.all_actives():
+		for e: ActiveEffect in t.effects.duplicate():
+			if e.kind == CombatTypes.EffectKind.DOT and t.is_alive():
+				var dmg: int = maxi(1, roundi(float(e.value) * CombatMath.frenzy_damage_mult(state.cycle)))
+				_apply_damage(null, t, dmg, false, "dot")
+		if not t.is_alive():
+			continue
+		t.tick_cooldowns()
+		for e in t.tick_effects(state.cycle):
+			_emit(CombatTypes.EventType.EFFECT_EXPIRED, t.uid, -1, 0.0, {"kind": e.kind, "stat": e.stat})
+	for team in state.teams:
+		for i in team.slot_switch_cd.size():
+			team.slot_switch_cd[i] = maxi(0, team.slot_switch_cd[i] - 1)
+		team.actions.clear()
+		team.actions_locked = false
+	state.cycle += 1
+	_emit(CombatTypes.EventType.CYCLE_ADVANCED, -1, -1, float(state.cycle))
+	if state.frenzy_stacks() > CombatMath.frenzy_stacks(state.cycle - 1):
+		_emit(CombatTypes.EventType.FRENZY_CHANGED, -1, -1, float(state.frenzy_stacks()), {
+			"damage_mult": CombatMath.frenzy_damage_mult(state.cycle),
+			"heal_mult": CombatMath.frenzy_heal_mult(state.cycle),
+		})
 
 
 func _check_win() -> bool:
@@ -360,11 +396,10 @@ func _check_win() -> bool:
 		return false
 	if a_out and b_out:
 		# Simultaneous wipe: the side that acted last takes it.
-		state.winner = state.current_actor.side if state.current_actor != null else CombatTypes.Side.A
+		state.winner = state.last_actor.side if state.last_actor != null else CombatTypes.Side.A
 	else:
 		state.winner = CombatTypes.Side.B if a_out else CombatTypes.Side.A
 	state.phase = CombatTypes.Phase.FINISHED
-	state.current_actor = null
 	_emit(CombatTypes.EventType.BATTLE_ENDED, -1, -1, float(state.winner), {"winner": state.winner, "cycle": state.cycle, "turns": state.turn_count})
 	return true
 
@@ -384,7 +419,6 @@ func _request_standby() -> bool:
 		needed = needed or not team.pending_slots.is_empty()
 	if needed:
 		state.phase = CombatTypes.Phase.STANDBY
-		state.current_actor = null
 		_emit(CombatTypes.EventType.STANDBY_REQUESTED, -1, -1, 0.0, {"pending": pending})
 	return needed
 
@@ -397,13 +431,13 @@ func _do_skill(actor: TroopInstance, action: CombatAction) -> void:
 	var skill: SkillData = actor.data.skills[action.skill_index]
 	var team: TeamState = state.team(actor.side)
 	var damage_mult: float = 1.0
-	var ignore_er: bool = false
+	var guaranteed: bool = false
 	if action.overdrive:
 		team.energy -= skill.overdrive_cost
 		_emit(CombatTypes.EventType.ENERGY_CHANGED, -1, -1, float(team.energy), {"side": actor.side, "delta": -skill.overdrive_cost})
 		_emit(CombatTypes.EventType.OVERDRIVE_ACTIVATED, actor.uid, -1, float(skill.overdrive_cost), {"kind": skill.overdrive_kind, "skill_index": action.skill_index})
-		if skill.overdrive_kind == CombatTypes.OverdriveKind.IGNORE_RESISTANCE:
-			ignore_er = true
+		if skill.overdrive_kind == CombatTypes.OverdriveKind.GUARANTEE_EFFECTS:
+			guaranteed = true
 		elif skill.overdrive_kind == CombatTypes.OverdriveKind.BONUS_DAMAGE:
 			damage_mult += skill.overdrive_value
 	_emit(CombatTypes.EventType.SKILL_USED, actor.uid, action.target_uid, float(action.skill_index), {
@@ -412,12 +446,10 @@ func _do_skill(actor: TroopInstance, action: CombatAction) -> void:
 	actor.cooldowns[action.skill_index] = skill.cooldown
 	if action.overdrive and skill.overdrive_kind == CombatTypes.OverdriveKind.REDUCE_COOLDOWN:
 		actor.cooldowns[action.skill_index] = maxi(0, skill.cooldown - int(skill.overdrive_value))
-	_execute_skill(actor, skill, _resolve_targets(actor, skill.target_type, action.target_uid, null), damage_mult, ignore_er)
+	_execute_skill(actor, skill, _resolve_targets(actor, skill.target_type, action.target_uid, null), damage_mult, guaranteed)
 	_process_triggers()
 	if skill.dual_attack_chance > 0.0 and actor.is_alive():
 		_try_dual_attack(actor, skill, action.target_uid)
-	if action.overdrive and skill.overdrive_kind == CombatTypes.OverdriveKind.EXTRA_TURN and actor.is_alive():
-		state.extra_turn_uid = actor.uid
 	if skill.self_switch_after and state.is_active(actor):
 		var bench_index: int = action.bench_index if action.bench_index != -1 else team.first_ready_bench()
 		if bench_index != -1:
@@ -425,16 +457,15 @@ func _do_skill(actor: TroopInstance, action: CombatAction) -> void:
 
 
 ## Shared by cast skills, dual attacks, and passives.
-func _execute_skill(caster: TroopInstance, skill: SkillData, targets: Array[TroopInstance], damage_mult: float, ignore_er: bool) -> void:
+func _execute_skill(caster: TroopInstance, skill: SkillData, targets: Array[TroopInstance], damage_mult: float, guaranteed: bool) -> void:
 	if skill.deals_damage():
 		for t in targets:
 			if t.is_alive() and t.side != caster.side:
 				_hit(caster, t, skill, damage_mult)
-	var pushes: Dictionary = {}
 	for effect in skill.effects:
 		for r in _effect_recipients(caster, effect.target, targets):
 			if r.is_alive():
-				_apply_effect(caster, r, effect, ignore_er, pushes)
+				_apply_effect(caster, r, effect, guaranteed)
 	if skill.energy_gain > 0:
 		_gain_energy(caster.side, skill.energy_gain)
 
@@ -459,11 +490,13 @@ func _try_dual_attack(actor: TroopInstance, skill: SkillData, target_uid: int) -
 
 func _hit(caster: TroopInstance, target: TroopInstance, skill: SkillData, damage_mult: float) -> void:
 	var crit: bool = rng.randf() < caster.get_stat(CombatTypes.Stat.CRIT_CHANCE)
-	var raw: float = CombatMath.raw_damage(caster.get_stat(CombatTypes.Stat.ATTACK), caster.max_hp(), skill, 1.0 - caster.hp_ratio())
+	var atk_stat: CombatTypes.Stat = CombatTypes.Stat.SPECIAL_ATTACK if skill.special else CombatTypes.Stat.ATTACK
+	var def_stat: CombatTypes.Stat = CombatTypes.Stat.SPECIAL_DEFENSE if skill.special else CombatTypes.Stat.DEFENSE
+	var raw: float = CombatMath.raw_damage(caster.get_stat(atk_stat), caster.max_hp(), skill, 1.0 - caster.hp_ratio())
 	var mult: float = damage_mult * CombatMath.frenzy_damage_mult(state.cycle)
 	if skill.bonus_vs_debuffed > 0.0 and target.has_debuff():
 		mult *= 1.0 + skill.bonus_vs_debuffed
-	var dmg: int = CombatMath.final_damage(raw, target.get_stat(CombatTypes.Stat.DEFENSE), crit, caster.data.crit_damage, mult)
+	var dmg: int = CombatMath.final_damage(raw, target.get_stat(def_stat), crit, caster.data.crit_damage, mult)
 	_apply_damage(caster, target, dmg, crit, "skill")
 	var target_partner: TroopInstance = state.partner(target)
 	if target_partner != null:
@@ -479,20 +512,16 @@ func _apply_damage(source: TroopInstance, target: TroopInstance, amount: int, cr
 	})
 	if target.hp == 0:
 		target.effects.clear()
-		target.cr = 0.0
 		_emit(CombatTypes.EventType.KO, target.uid, -1, 0.0, {"side": target.side, "slot": state.team(target.side).slot_of(target)})
 
 
-func _apply_effect(caster: TroopInstance, target: TroopInstance, effect: EffectData, ignore_er: bool, pushes: Dictionary) -> void:
-	if effect.chance < 1.0 and rng.randf() >= effect.chance:
-		return
+func _apply_effect(caster: TroopInstance, target: TroopInstance, effect: EffectData, guaranteed: bool) -> void:
 	var hostile: bool = effect.is_debuff() and target.side != caster.side
-	if hostile:
-		var er: float = 0.0 if ignore_er else target.get_stat(CombatTypes.Stat.EFFECT_RESISTANCE)
-		var chance: float = CombatMath.hit_chance(caster.get_stat(CombatTypes.Stat.EFFECTIVENESS), er)
-		if chance < 1.0 and rng.randf() >= chance:
+	var chance: float = 1.0 if guaranteed else CombatMath.effect_chance(effect.chance, caster.get_stat(CombatTypes.Stat.EFFECTIVENESS))
+	if chance < 1.0 and rng.randf() >= chance:
+		if hostile:
 			_emit(CombatTypes.EventType.EFFECT_RESISTED, caster.uid, target.uid, 0.0, {"kind": effect.kind, "stat": effect.stat})
-			return
+		return
 	var heal_mult: float = CombatMath.frenzy_heal_mult(state.cycle)
 	match effect.kind:
 		CombatTypes.EffectKind.STAT_MOD, CombatTypes.EffectKind.STUN:
@@ -501,13 +530,13 @@ func _apply_effect(caster: TroopInstance, target: TroopInstance, effect: EffectD
 				existing.remaining = maxi(existing.remaining, effect.duration)
 				if absf(effect.magnitude) > absf(existing.magnitude):
 					existing.magnitude = effect.magnitude
-				existing.applied_turn = state.turn_count
+				existing.applied_turn = state.cycle
 			else:
-				target.effects.append(ActiveEffect.new(effect.kind, effect.stat, effect.magnitude, effect.duration, 0, caster.uid, state.turn_count))
+				target.effects.append(ActiveEffect.new(effect.kind, effect.stat, effect.magnitude, effect.duration, 0, caster.uid, state.cycle))
 			_emit_applied(caster, target, effect, 0)
 		CombatTypes.EffectKind.DOT:
 			var tick: int = maxi(1, roundi(caster.get_stat(CombatTypes.Stat.ATTACK) * effect.magnitude))
-			target.effects.append(ActiveEffect.new(effect.kind, effect.stat, effect.magnitude, effect.duration, tick, caster.uid, state.turn_count))
+			target.effects.append(ActiveEffect.new(effect.kind, effect.stat, effect.magnitude, effect.duration, tick, caster.uid, state.cycle))
 			_emit_applied(caster, target, effect, tick)
 		CombatTypes.EffectKind.SHIELD:
 			var amount: int = roundi(float(caster.max_hp()) * effect.magnitude * heal_mult)
@@ -517,21 +546,14 @@ func _apply_effect(caster: TroopInstance, target: TroopInstance, effect: EffectD
 			if shield != null:
 				shield.value = maxi(shield.value, amount)
 				shield.remaining = maxi(shield.remaining, effect.duration)
-				shield.applied_turn = state.turn_count
+				shield.applied_turn = state.cycle
 			else:
-				target.effects.append(ActiveEffect.new(effect.kind, effect.stat, effect.magnitude, effect.duration, amount, caster.uid, state.turn_count))
+				target.effects.append(ActiveEffect.new(effect.kind, effect.stat, effect.magnitude, effect.duration, amount, caster.uid, state.cycle))
 			_emit_applied(caster, target, effect, amount)
 		CombatTypes.EffectKind.HEAL:
 			var heal: int = mini(target.max_hp() - target.hp, roundi(float(caster.max_hp()) * effect.magnitude * heal_mult))
 			target.hp += maxi(0, heal)
 			_emit(CombatTypes.EventType.HEAL, caster.uid, target.uid, float(maxi(0, heal)), {"hp_after": target.hp})
-		CombatTypes.EffectKind.CR_CHANGE:
-			var before_total: float = float(pushes.get(target.uid, 0.0))
-			var allowed: float = CombatMath.clamp_cr_push(before_total + effect.magnitude) - before_total
-			pushes[target.uid] = before_total + allowed
-			var old_cr: float = target.cr
-			target.cr = clampf(target.cr + allowed, 0.0, CombatTypes.CR_MAX)
-			_emit(CombatTypes.EventType.CR_CHANGED, caster.uid, target.uid, target.cr - old_cr, {"cr_after": target.cr})
 		CombatTypes.EffectKind.CLEANSE:
 			var removed: int = target.cleanse(false)
 			if removed > 0:
@@ -554,23 +576,21 @@ func _do_switch(actor: TroopInstance, bench_index: int, tactical: bool) -> void:
 	var incoming: TroopInstance = team.bench[bench_index]
 	team.bench[bench_index] = actor
 	team.active[slot] = incoming
-	actor.cr = 0.0
 	_emit(CombatTypes.EventType.SWITCHED, actor.uid, incoming.uid, float(slot), {"side": actor.side, "slot": slot, "bench_index": bench_index, "tactical": tactical, "incoming_name": incoming.data.display_name})
 	_gain_energy(actor.side, CombatTypes.SWITCH_ENERGY)
 	if tactical:
-		_pending_switch_cd_slot = slot
-	_enter_field(incoming, slot, CombatTypes.SWITCH_ENTRY_CR)
+		team.slot_switch_cd[slot] = CombatTypes.SWITCH_COOLDOWN_TURNS + 1 # round end ticks it once
+	_enter_field(incoming, slot)
 	_process_triggers()
 
 
-## Places a troop on the field: entry CR, stat-debuff cleanse, ON_SWITCH_IN passives.
-func _enter_field(troop: TroopInstance, slot: int, entry_cr: float) -> void:
-	troop.cr = entry_cr
+## Places a troop on the field: stat-debuff cleanse, ON_SWITCH_IN passives.
+func _enter_field(troop: TroopInstance, slot: int) -> void:
 	troop.revealed = true
 	var cleansed: int = troop.cleanse(true)
-	_emit(CombatTypes.EventType.TROOP_ENTERED, troop.uid, -1, entry_cr, {
+	_emit(CombatTypes.EventType.TROOP_ENTERED, troop.uid, -1, 0.0, {
 		"side": troop.side, "slot": slot, "name": troop.data.display_name, "troop_id": String(troop.data.troop_id),
-		"archetype": troop.data.archetype, "hp": troop.hp, "max_hp": troop.max_hp(), "shield": troop.shield(), "cr": troop.cr,
+		"archetype": troop.data.archetype, "hp": troop.hp, "max_hp": troop.max_hp(), "shield": troop.shield(),
 	})
 	if cleansed > 0:
 		_emit(CombatTypes.EventType.CLEANSED, troop.uid, troop.uid, float(cleansed))

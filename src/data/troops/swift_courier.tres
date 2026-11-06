@@ -14,20 +14,21 @@ dual_attack_chance = 0.05
 
 [sub_resource type="Resource" id="Resource_kon4j"]
 script = ExtResource("3_uf5kc")
-kind = 5
 target = 1
-magnitude = 30.0
+stat = 4
+magnitude = 0.2
+duration = 2
 
 [sub_resource type="Resource" id="Resource_suyb0"]
 script = ExtResource("3_uf5kc")
-kind = 7
+kind = 6
 target = 1
 magnitude = 2.0
 
 [sub_resource type="Resource" id="Resource_cnyxw"]
 script = ExtResource("2_ye18a")
 skill_name = "Slipstream Entry"
-description = "Passive: on switch-in, gain +30% CR and 2 Team Energy (2-turn internal cooldown)."
+description = "Passive: on switch-in, gain +20% SPE for 2 turns and 2 Team Energy (2-turn internal cooldown)."
 slot = 1
 is_passive = true
 trigger = 1
@@ -37,14 +38,15 @@ effects = Array[ExtResource("3_uf5kc")]([SubResource("Resource_kon4j"), SubResou
 
 [sub_resource type="Resource" id="Resource_8ry7c"]
 script = ExtResource("3_uf5kc")
-kind = 5
 target = 3
-magnitude = 20.0
+stat = 4
+magnitude = 0.2
+duration = 2
 
 [sub_resource type="Resource" id="Resource_0e6qk"]
 script = ExtResource("2_ye18a")
 skill_name = "Relay Strike"
-description = "Strike one enemy (140% ATK), push the partner's CR forward 20%, then switch out with a benched troop.
+description = "Strike one enemy (140% ATK), raise the partner's SPE by 20% for 2 turns, then switch out with a benched troop.
 Overdrive (8): cooldown -2."
 slot = 2
 cooldown = 4
@@ -60,10 +62,11 @@ script = ExtResource("1_vfqft")
 troop_id = &"swift_courier"
 display_name = "Swift Courier"
 archetype = 3
-max_hp = 900
-attack = 165
+max_hp = 940
+attack = 190
+special_attack = 90
 defense = 95
-speed = 118
+special_defense = 85
+speed = 120
 effectiveness = 0.2
-effect_resistance = 0.1
 skills = Array[ExtResource("2_ye18a")]([SubResource("Resource_rv0co"), SubResource("Resource_cnyxw"), SubResource("Resource_0e6qk")])

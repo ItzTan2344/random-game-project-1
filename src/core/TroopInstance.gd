@@ -6,7 +6,6 @@ var uid: int = 0
 var data: TroopData
 var side: int = 0
 var hp: int = 0
-var cr: float = 0.0
 var cooldowns: Array[int] = []
 var passive_icd: int = 0
 var effects: Array[ActiveEffect] = []
@@ -39,16 +38,18 @@ func base_stat(stat: CombatTypes.Stat) -> float:
 	match stat:
 		CombatTypes.Stat.ATTACK:
 			return float(data.attack)
+		CombatTypes.Stat.SPECIAL_ATTACK:
+			return float(data.special_attack)
 		CombatTypes.Stat.DEFENSE:
 			return float(data.defense)
+		CombatTypes.Stat.SPECIAL_DEFENSE:
+			return float(data.special_defense)
 		CombatTypes.Stat.SPEED:
 			return float(data.speed)
 		CombatTypes.Stat.CRIT_CHANCE:
 			return data.crit_chance
 		CombatTypes.Stat.EFFECTIVENESS:
 			return data.effectiveness
-		CombatTypes.Stat.EFFECT_RESISTANCE:
-			return data.effect_resistance
 	return 0.0
 
 
@@ -61,10 +62,10 @@ func stat_modifier(stat: CombatTypes.Stat) -> float:
 	return clampf(total, CombatTypes.STAT_MOD_MIN, cap)
 
 
-## ATK/DEF/SPD modifiers are multiplicative; chance stats are flat additive.
+## ATK/SPA/DEF/SPD/SPE modifiers are multiplicative; chance stats are flat additive.
 func get_stat(stat: CombatTypes.Stat) -> float:
 	var mod: float = stat_modifier(stat)
-	if stat == CombatTypes.Stat.ATTACK or stat == CombatTypes.Stat.DEFENSE or stat == CombatTypes.Stat.SPEED:
+	if stat != CombatTypes.Stat.CRIT_CHANCE and stat != CombatTypes.Stat.EFFECTIVENESS:
 		return base_stat(stat) * (1.0 + mod)
 	return base_stat(stat) + mod
 
@@ -130,12 +131,12 @@ func tick_cooldowns() -> void:
 	passive_icd = maxi(0, passive_icd - 1)
 
 
-## Decrements durations at the owner's turn end; returns expired effects.
-func tick_effects(current_turn: int) -> Array[ActiveEffect]:
+## Decrements durations at round end; returns expired effects. Effects applied this round don't tick yet.
+func tick_effects(current_round: int) -> Array[ActiveEffect]:
 	var expired: Array[ActiveEffect] = []
 	for i in range(effects.size() - 1, -1, -1):
 		var e: ActiveEffect = effects[i]
-		if e.applied_turn == current_turn:
+		if e.applied_turn == current_round:
 			continue
 		e.remaining -= 1
 		if e.remaining <= 0:
@@ -157,8 +158,8 @@ func to_snapshot() -> Dictionary:
 		"hp": hp,
 		"max_hp": max_hp(),
 		"shield": shield(),
-		"cr": cr,
 		"speed": get_stat(CombatTypes.Stat.SPEED),
+		"stats": {"atk": get_stat(CombatTypes.Stat.ATTACK), "spa": get_stat(CombatTypes.Stat.SPECIAL_ATTACK), "def": get_stat(CombatTypes.Stat.DEFENSE), "spd": get_stat(CombatTypes.Stat.SPECIAL_DEFENSE), "spe": get_stat(CombatTypes.Stat.SPEED), "eff": get_stat(CombatTypes.Stat.EFFECTIVENESS)},
 		"cooldowns": cooldowns.duplicate(),
 		"passive_icd": passive_icd,
 		"alive": is_alive(),

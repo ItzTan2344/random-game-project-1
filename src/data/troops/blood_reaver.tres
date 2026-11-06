@@ -21,14 +21,15 @@ duration = 2
 
 [sub_resource type="Resource" id="Resource_p2dw4"]
 script = ExtResource("3_w1uvu")
-kind = 5
 target = 3
-magnitude = 15.0
+stat = 4
+magnitude = 0.15
+duration = 2
 
 [sub_resource type="Resource" id="Resource_ab41e"]
 script = ExtResource("2_7jna6")
 skill_name = "Rally Cry"
-description = "Raise ATK of both allies by 30% for 2 turns and push the partner's CR forward 15%."
+description = "Raise ATK of both allies by 30% for 2 turns and the partner's SPE by 15%."
 slot = 1
 cooldown = 3
 target_type = 4
@@ -60,9 +61,10 @@ script = ExtResource("1_jl2ei")
 troop_id = &"blood_reaver"
 display_name = "Blood Reaver"
 archetype = 2
-max_hp = 1100
-attack = 175
-defense = 105
+max_hp = 950
+attack = 140
+special_attack = 80
+defense = 95
+special_defense = 80
 crit_damage = 1.6
-effect_resistance = 0.15
 skills = Array[ExtResource("2_7jna6")]([SubResource("Resource_sknno"), SubResource("Resource_ab41e"), SubResource("Resource_uthxe")])

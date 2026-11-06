@@ -4,13 +4,12 @@ extends Control
 ## It never touches the engine: BattleClient forwards the intents to the server.
 
 signal draft_submitted(picks: Array[int])
-signal skill_requested(skill_index: int, target_uid: int, overdrive: bool)
-signal switch_requested(bench_index: int)
+signal actions_locked(actions: Dictionary)
 signal replacement_requested(slot: int, bench_index: int)
 signal restart_requested
 
 const SIDE_COLORS: Array[Color] = [Color("#5fa8ff"), Color("#ff7a6b")]
-const OVERDRIVE_NAMES: Array[String] = ["", "Ignore Resistance", "Reduce Cooldown", "Extra Turn", "Bonus Damage"]
+const OVERDRIVE_NAMES: Array[String] = ["", "Guarantee Effects", "Reduce Cooldown", "Act First", "Bonus Damage"]
 const TARGET_NAMES: Array[String] = ["Single enemy", "All enemies", "Single ally", "Self", "Both allies"]
 
 @export var playback_speed: float = 1.0
@@ -25,6 +24,10 @@ var _cards: Array[TroopCard] = []
 var _stage: BattleStage
 var _input_locked: bool = true
 var _pending_skill: int = -1
+var _selected_troop_uid: int = -1
+var _chosen_actions: Dictionary = {}
+var _acting_actor: int = -1
+var _timeline_order: Array = []
 var _draft_picks: Array[int] = []
 var _draft_built: bool = false
 var _draft_time_left: float = 0.0
@@ -40,6 +43,7 @@ var _timeline_box: HBoxContainer
 var _bench_boxes: Array[HBoxContainer] = [null, null]
 var _skill_buttons: Array[Button] = []
 var _overdrive_button: Button
+var _lock_button: Button
 var _switch_buttons: Array[Button] = []
 var _prompt_panel: PanelContainer
 var _prompt_label: Label
@@ -110,7 +114,7 @@ func _ready() -> void:
 	var tl_panel: PanelContainer = _panel(top)
 	tl_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var tl_row: HBoxContainer = _hbox(tl_panel, 6)
-	_label(tl_row, &"Dim").text = "NEXT"
+	_label(tl_row, &"Dim").text = "SPEED ORDER"
 	_timeline_box = _hbox(tl_row, 6)
 	var energy_panel: PanelContainer = _panel(top)
 	energy_panel.tooltip_text = "Team Energy: spend it on Overdrive."
@@ -171,8 +175,16 @@ func _ready() -> void:
 	_overdrive_button = Button.new()
 	_overdrive_button.toggle_mode = true
 	_overdrive_button.custom_minimum_size = Vector2(160, 66)
-	_overdrive_button.toggled.connect(func(on: bool) -> void: _overdrive_button.theme_type_variation = &"GoldButton" if on else &"")
+	_overdrive_button.toggled.connect(func(on: bool) -> void:
+		_overdrive_button.theme_type_variation = &"GoldButton" if on else &""
+		_refresh_controls())
 	actions.add_child(_overdrive_button)
+	_lock_button = Button.new()
+	_lock_button.text = "LOCK IN"
+	_lock_button.theme_type_variation = &"GoldButton"
+	_lock_button.custom_minimum_size = Vector2(160, 66)
+	_lock_button.pressed.connect(_on_lock_actions_pressed)
+	actions.add_child(_lock_button)
 
 	_float_layer = Control.new()
 	_float_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -365,6 +377,10 @@ func reset() -> void:
 	_draft_picks.clear()
 	_draft_built = false
 	_pending_skill = -1
+	_selected_troop_uid = -1
+	_chosen_actions.clear()
+	_acting_actor = -1
+	_timeline_order.clear()
 	_clear(_draft_grid)
 	_clear(_enemy_preview)
 	_draft_buttons.clear()
@@ -405,24 +421,36 @@ func play_event(e: Dictionary) -> void:
 			var card: TroopCard = _cards[int(d["side"]) * 2 + int(d["slot"])]
 			card.bind(actor, String(d["name"]), int(d["archetype"]), _portraits.texture(String(d["troop_id"])))
 			card.set_hp(int(d["hp"]), int(d["max_hp"]), int(d["shield"]))
-			card.set_cr(float(d["cr"]))
 			card.set_effects([], [])
 			_stage.place(int(d["side"]), int(d["slot"]), actor, String(d["troop_id"]), true)
-			_log_line("%s enters the field (%d%% CR)." % [_cn(actor), roundi(value)])
+			_log_line("%s enters the field." % _cn(actor))
 			delay = 0.3
-		CombatTypes.EventType.TIMELINE_ADVANCED:
-			var crs: Dictionary = d["cr"]
-			for uid: int in crs:
-				var c: TroopCard = _card_for(uid)
-				if c != null:
-					c.set_cr(float(crs[uid]))
+		CombatTypes.EventType.ROUND_STARTED:
+			var order: Array = d.get("order", [])
+			_timeline_order = Array(order).duplicate()
+			_acting_actor = -1
+			_refresh_timeline()
+			_chosen_actions.clear()
+			_refresh_chosen_action_display()
+			_log_line("[color=#7d8597]— Turn %d —[/color]" % int(value))
+			delay = 0.2
+		CombatTypes.EventType.ACTIONS_LOCKED:
+			var locked_side: int = int(d.get("side", -1))
+			_log_line("%s locked in actions." % _side_name(locked_side))
 		CombatTypes.EventType.CYCLE_ADVANCED:
-			_log_line("[color=#7d8597]— Cycle %d —[/color]" % int(value))
+			_log_line("[color=#7d8597]— Turn %d —[/color]" % int(value))
 		CombatTypes.EventType.FRENZY_CHANGED:
 			_log_line("[color=#ff5050][b]BATTLE FRENZY x%d[/b] — damage x%.2f, healing x%.2f[/color]" % [int(value), float(d["damage_mult"]), float(d["heal_mult"])])
 			delay = 0.3
 		CombatTypes.EventType.TURN_STARTED:
+			_acting_actor = actor
 			_highlight_actor(actor)
+			_refresh_timeline()
+			delay = 0.15
+		CombatTypes.EventType.TURN_ENDED:
+			_acting_actor = -1
+			_highlight_actor(-1)
+			_refresh_timeline()
 		CombatTypes.EventType.TURN_SKIPPED:
 			_float(actor, "Stunned", Color("#b7a6ff"))
 			_log_line("%s is stunned and loses the turn." % _cn(actor))
@@ -472,16 +500,10 @@ func play_event(e: Dictionary) -> void:
 			_float(target, "Resist", Color("#c0c0c0"))
 			_log_line("  %s resisted." % _cn(target))
 			delay = 0.15
-		CombatTypes.EventType.EFFECT_EXPIRED, CombatTypes.EventType.TURN_ENDED, CombatTypes.EventType.ACTION_REQUESTED:
+		CombatTypes.EventType.EFFECT_EXPIRED, CombatTypes.EventType.ACTION_REQUESTED:
 			pass
 		CombatTypes.EventType.CLEANSED:
 			_float(target, "Cleansed", Color("#9fd4ff"))
-		CombatTypes.EventType.CR_CHANGED:
-			var c5: TroopCard = _card_for(target)
-			if c5 != null:
-				c5.set_cr(float(d["cr_after"]))
-			_float(target, "CR %+d%%" % roundi(value), Color("#e8c547"))
-			delay = 0.1
 		CombatTypes.EventType.ENERGY_CHANGED:
 			_energy[int(d["side"])] = int(value)
 			_refresh_status()
@@ -506,9 +528,6 @@ func play_event(e: Dictionary) -> void:
 			_stage.play(actor, &"death")
 			_log_line("[color=#ff5050]%s is knocked out![/color]" % _cn(actor))
 			delay = 0.45
-		CombatTypes.EventType.EXTRA_TURN:
-			_float(actor, "Extra Turn!", Color("#ffd24a"))
-			_log_line("%s takes an extra turn!" % _cn(actor))
 		CombatTypes.EventType.STANDBY_REQUESTED:
 			_log_line("[color=#e8c547]Standby — fill the empty slot from the bench.[/color]")
 		CombatTypes.EventType.REPLACED:
@@ -516,7 +535,7 @@ func play_event(e: Dictionary) -> void:
 			_sides[actor] = int(d["side"])
 			_log_line("%s sends in %s." % [_side_name(int(d["side"])), _cn(actor)])
 		CombatTypes.EventType.BATTLE_ENDED:
-			_log_line("[b]%s wins after %d cycles.[/b]" % [_side_name(int(d["winner"])), int(d["cycle"])])
+			_log_line("[b]%s wins after %d turns.[/b]" % [_side_name(int(d["winner"])), int(d["cycle"])])
 		CombatTypes.EventType.ACTION_REJECTED:
 			if int(d["side"]) == viewer_side or int(d["side"]) == -1:
 				_prompt("Rejected: %s" % String(d["reason"]), Color("#ff6b6b"))
@@ -538,6 +557,19 @@ func apply_snapshot(snap: Dictionary) -> void:
 		_show_draft(snap)
 	else:
 		_draft_panel.visible = false
+	if phase == CombatTypes.Phase.ACTION_WAIT:
+		_timeline_order = snap.get("timeline", []).duplicate()
+		if not snap["teams"][viewer_side]["actions_locked"]:
+			var legal: Dictionary = snap.get("legal", {})
+			for uid: int in _chosen_actions.keys():
+				if not legal.has(uid):
+					_chosen_actions.erase(uid)
+			if not legal.has(_selected_troop_uid) and not legal.is_empty():
+				_selected_troop_uid = int(legal.keys()[0])
+		else:
+			_chosen_actions.clear()
+	else:
+		_chosen_actions.clear()
 	_refresh_field()
 	_refresh_status()
 	_refresh_timeline()
@@ -573,8 +605,15 @@ func _refresh_field() -> void:
 				_stage.model_for(uid).set_dead()
 			card.bind(uid, String(t["name"]), int(t["archetype"]), _portraits.texture(String(t["troop_id"])))
 			card.set_hp(int(t["hp"]), int(t["max_hp"]), int(t["shield"]))
-			card.set_cr(float(t["cr"]))
 			card.set_effects(t["effects"], t["cooldowns"])
+			if t.has("stats"):
+				var st: Dictionary = t["stats"]
+				card.tooltip_text = "%s\nHP %d/%d\nATK %d  SPA %d\nDEF %d  SPD %d\nSPE %d  EFF %d%%" % [
+					t["name"], t["hp"], t["max_hp"],
+					roundi(st["atk"]), roundi(st["spa"]),
+					roundi(st["def"]), roundi(st["spd"]),
+					roundi(st["spe"]), roundi(st["eff"] * 100.0)
+				]
 		if _bench_boxes[side] == null:
 			continue
 		_clear(_bench_boxes[side])
@@ -584,6 +623,7 @@ func _refresh_field() -> void:
 				_bench_boxes[side].add_child(UITheme.chip("???", UITheme.TEXT_DIM, 13))
 			elif buid >= 0 and troops.has(buid):
 				_bench_boxes[side].add_child(UITheme.chip(_bench_text(troops[buid]), SIDE_COLORS[side], 13))
+	_refresh_chosen_action_display()
 
 
 func _refresh_status() -> void:
@@ -595,7 +635,7 @@ func _refresh_status() -> void:
 		_status_label.text = "ET"
 		return
 	var phase: int = int(snapshot["phase"])
-	_status_label.text = "TEAM PREVIEW" if phase == CombatTypes.Phase.PREVIEW else "CYCLE %d · TURN %d" % [int(snapshot["cycle"]), int(snapshot["turn"])]
+	_status_label.text = "TEAM PREVIEW" if phase == CombatTypes.Phase.PREVIEW else "TURN %d" % int(snapshot["cycle"])
 	var frenzy: int = int(snapshot["frenzy_stacks"])
 	if frenzy > 0:
 		var c: PanelContainer = UITheme.chip("FRENZY x%d" % frenzy, UITheme.DANGER, 14)
@@ -604,21 +644,26 @@ func _refresh_status() -> void:
 		_frenzy_box.add_child(c)
 
 
-## Turn order as side-framed portraits; the next to act is drawn larger.
+## Turn order as side-framed portraits; the acting troop is drawn larger.
 func _refresh_timeline() -> void:
 	_clear(_timeline_box)
 	var troops: Dictionary = snapshot.get("troops", {})
-	var first: bool = true
-	for uid in snapshot.get("timeline", []):
+	for uid in _timeline_order:
 		if not troops.has(uid):
 			continue
 		var t: Dictionary = troops[uid]
-		var ic: PanelContainer = _portraits.icon(String(t["troop_id"]), SIDE_COLORS[int(t["side"])], 46 if first else 32)
+		var is_acting: bool = (uid == _acting_actor)
+		var ic: PanelContainer = _portraits.icon(String(t["troop_id"]), SIDE_COLORS[int(t["side"])], 46 if is_acting else 32)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		ic.tooltip_text = "%s (%s)" % [t["name"], "you" if int(t["side"]) == viewer_side else "foe"]
 		ic.mouse_filter = Control.MOUSE_FILTER_STOP
+		if is_acting:
+			var s: StyleBoxFlat = ic.get_theme_stylebox("panel") as StyleBoxFlat
+			if s != null:
+				s.border_color = UITheme.GOLD
+				s.shadow_color = Color(UITheme.GOLD, 0.4)
+				s.shadow_size = 6
 		_timeline_box.add_child(ic)
-		first = false
 
 
 func _refresh_controls() -> void:
@@ -626,36 +671,69 @@ func _refresh_controls() -> void:
 		return
 	var phase: int = int(snapshot.get("phase", CombatTypes.Phase.PREVIEW))
 	var legal: Dictionary = snapshot.get("legal", {})
-	var my_turn: bool = not _input_locked and phase == CombatTypes.Phase.ACTION_WAIT and not legal.is_empty()
+	var mine_locked: bool = bool(snapshot.get("teams", [{}, {}])[viewer_side].get("actions_locked", false)) if snapshot.has("teams") else false
+	var my_turn: bool = not _input_locked and phase == CombatTypes.Phase.ACTION_WAIT and not legal.is_empty() and not mine_locked
+
+	if my_turn:
+		if not legal.has(_selected_troop_uid):
+			_selected_troop_uid = int(legal.keys()[0])
+	else:
+		_selected_troop_uid = -1
+
+	var legal_entry: Dictionary = legal.get(_selected_troop_uid, {}) if my_turn else {}
+	var skills: Array = legal_entry.get("skills", [])
+	var avail_energy: int = _get_available_energy(_selected_troop_uid) if my_turn else 0
+
 	for i in _skill_buttons.size():
 		var b: Button = _skill_buttons[i]
-		if not my_turn:
+		if not my_turn or skills.is_empty() or i >= skills.size():
 			b.disabled = true
 			b.text = "S%d\n—" % (i + 1)
 			b.tooltip_text = ""
 			continue
-		var info: Dictionary = legal["skills"][i]
+		var info: Dictionary = skills[i]
+		var is_special: bool = bool(info.get("special", false))
+		var special_tag: String = " [SPECIAL]" if is_special else ""
 		var state_text: String = "Passive" if bool(info["passive"]) else ("Ready" if bool(info["ready"]) else "Cooldown %d" % int(info["cooldown_left"]))
-		b.text = "%s\n[%d] %s" % [String(info["name"]), i + 1, state_text]
+		b.text = "%s%s\n[%d] %s" % [String(info["name"]), special_tag, i + 1, state_text]
 		b.disabled = not bool(info["ready"])
 		var od_kind: int = int(info["overdrive_kind"])
-		var od_text: String = "\nOverdrive: %s (%d Energy)%s" % [OVERDRIVE_NAMES[od_kind], int(info["overdrive_cost"]), "" if bool(info["can_overdrive"]) else " — not enough Energy"] if od_kind != 0 else ""
-		b.tooltip_text = "%s\nTarget: %s%s" % [String(info["description"]), TARGET_NAMES[int(info["target_type"])], od_text]
-	_overdrive_button.disabled = not my_turn
-	if not my_turn:
+		var od_cost: int = int(info["overdrive_cost"])
+		var can_od: bool = od_kind != CombatTypes.OverdriveKind.NONE and od_cost <= avail_energy
+		var od_text: String = "\nOverdrive: %s (%d Energy)%s" % [OVERDRIVE_NAMES[od_kind], od_cost, "" if can_od else " — not enough Energy"] if od_kind != 0 else ""
+		var spec_tooltip: String = "[SPECIAL - SPA vs SPD]\n" if is_special else ""
+		b.tooltip_text = "%s%s\nTarget: %s%s" % [spec_tooltip, String(info["description"]), TARGET_NAMES[int(info["target_type"])], od_text]
+
+	var can_any_od: bool = false
+	for s_info: Dictionary in skills:
+		var ok: int = int(s_info.get("overdrive_kind", 0))
+		var oc: int = int(s_info.get("overdrive_cost", 0))
+		if ok != CombatTypes.OverdriveKind.NONE and oc <= avail_energy and bool(s_info.get("ready", false)):
+			can_any_od = true
+			break
+
+	_overdrive_button.disabled = not my_turn or not can_any_od
+	if not my_turn or not can_any_od:
 		_overdrive_button.button_pressed = false
 	_overdrive_button.text = "OVERDRIVE\n[O] %s" % ("ARMED" if _overdrive_button.button_pressed else "off")
-	_overdrive_button.tooltip_text = "Spend Team Energy to empower the next skill (each skill's tooltip shows the effect and cost)."
+	_overdrive_button.tooltip_text = "Spend Team Energy to empower the next skill (each skill's tooltip shows the effect and cost).\nAvailable Energy: %d" % avail_energy
 
 	var bench_ids: Array = snapshot["teams"][viewer_side]["bench"] if snapshot.has("teams") else []
-	var switchable: Array = legal.get("bench", [])
+	var switchable: Array = legal_entry.get("bench", [])
+	var can_switch: bool = bool(legal_entry.get("can_switch", false))
 	for i in _switch_buttons.size():
 		var b: Button = _switch_buttons[i]
 		var uid: int = int(bench_ids[i]) if i < bench_ids.size() else -1
 		var known: bool = uid >= 0 and snapshot["troops"].has(uid)
-		b.text = _bench_text(snapshot["troops"][uid]) if known else "—"
+		var is_taken: bool = _is_bench_taken_by_other(i, _selected_troop_uid)
+		var btext: String = _bench_text(snapshot["troops"][uid]) if known else "—"
+		if is_taken:
+			btext += " (Taken)"
+		b.text = btext
 		b.icon = _portraits.texture(String(snapshot["troops"][uid]["troop_id"])) if known else null
-		b.disabled = not my_turn or not switchable.has(i)
+		b.disabled = not my_turn or not can_switch or not switchable.has(i) or is_taken
+
+	_lock_button.disabled = not my_turn or not _can_lock_actions()
 
 	var pending: Array = snapshot["teams"][viewer_side]["pending_slots"] if snapshot.has("teams") else []
 	var standby: bool = not _input_locked and phase == CombatTypes.Phase.STANDBY and not pending.is_empty()
@@ -664,13 +742,24 @@ func _refresh_controls() -> void:
 	_set_overlay(_standby_panel, standby)
 
 	if my_turn:
-		var actor: int = int(legal["actor"])
-		_prompt("YOUR TURN — %s" % _n(actor), UITheme.GOLD)
-		_highlight_actor(actor)
+		if _pending_skill != -1:
+			var p_info: Dictionary = skills[_pending_skill]
+			_prompt("CHOOSE A TARGET — %s   (Esc to cancel)" % String(p_info["name"]), UITheme.DANGER.lightened(0.3))
+		elif _can_lock_actions():
+			_prompt("ALL ACTIONS CHOSEN — Press LOCK IN (or click a troop to edit)", UITheme.GOLD)
+		else:
+			_prompt("PICK ACTION for %s (or click another troop to switch)" % _n(_selected_troop_uid), UITheme.GOLD)
+		_highlight_actor(_selected_troop_uid)
 	elif phase == CombatTypes.Phase.ACTION_WAIT:
-		_prompt("Opponent is acting…" if not legal.has("actor") else "…", Color("#a0a8b8"))
+		if mine_locked:
+			_prompt("Waiting for opponent\u2026", Color("#a0a8b8"))
+		elif legal.is_empty():
+			_prompt("", Color.WHITE)
+		else:
+			_prompt("Waiting\u2026", Color("#a0a8b8"))
+		_highlight_actor(-1)
 	elif phase == CombatTypes.Phase.STANDBY and pending.is_empty():
-		_prompt("Opponent is choosing a replacement…", Color("#a0a8b8"))
+		_prompt("Opponent is choosing a replacement\u2026", Color("#a0a8b8"))
 	else:
 		_prompt("", Color.WHITE)
 
@@ -718,7 +807,7 @@ func _show_draft(snap: Dictionary) -> void:
 func _draft_tile(s: Dictionary, index: int) -> Button:
 	var arch: int = int(s["archetype"])
 	var b: Button = Button.new()
-	b.custom_minimum_size = Vector2(196, 222)
+	b.custom_minimum_size = Vector2(204, 236)
 	b.tooltip_text = _squad_tooltip(s)
 	b.pressed.connect(_on_draft_toggle.bind(index))
 	var v: VBoxContainer = _vbox(b, 4)
@@ -735,7 +824,10 @@ func _draft_tile(s: Dictionary, index: int) -> Button:
 	chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(chip)
 	var stats: Label = _label(v, &"Dim")
-	stats.text = "HP %d   ATK %d\nDEF %d   SPD %d" % [s["max_hp"], s["attack"], s["defense"], s["speed"]]
+	stats.text = "HP %d  SPE %d\nATK %d  SPA %d\nDEF %d  SPD %d  EFF %d%%" % [
+		s["max_hp"], s["speed"], s["attack"], s["special_attack"],
+		s["defense"], s["special_defense"], roundi(float(s["effectiveness"]) * 100.0)
+	]
 	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var badge: Label = _label(b, &"Header")
 	badge.position = Vector2(10, 6)
@@ -760,7 +852,10 @@ func _enemy_tile(s: Dictionary) -> PanelContainer:
 	var chip: PanelContainer = UITheme.chip(TroopCard.ARCHETYPE_NAMES[arch], TroopCard.ARCHETYPE_COLORS[arch], 11)
 	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	v.add_child(chip)
-	_label(v, &"Dim").text = "HP %d  ATK %d  DEF %d  SPD %d" % [s["max_hp"], s["attack"], s["defense"], s["speed"]]
+	_label(v, &"Dim").text = "HP %d  SPE %d  EFF %d%%\nATK %d  SPA %d  DEF %d  SPD %d" % [
+		s["max_hp"], s["speed"], roundi(float(s["effectiveness"]) * 100.0),
+		s["attack"], s["special_attack"], s["defense"], s["special_defense"]
+	]
 	return p
 
 
@@ -798,7 +893,8 @@ func _refresh_draft() -> void:
 func _squad_tooltip(s: Dictionary) -> String:
 	var lines: PackedStringArray = []
 	for sk: Dictionary in s["skills"]:
-		lines.append("S%d %s%s: %s" % [int(sk["slot"]) + 1, sk["name"], " (passive)" if bool(sk["passive"]) else " (CD %d)" % int(sk["cooldown"]), sk["description"]])
+		var spec: String = " [SPECIAL]" if bool(sk.get("special", false)) else ""
+		lines.append("S%d %s%s%s: %s" % [int(sk["slot"]) + 1, sk["name"], spec, " (passive)" if bool(sk["passive"]) else " (CD %d)" % int(sk["cooldown"]), sk["description"]])
 	return "\n".join(lines)
 
 
@@ -817,8 +913,8 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _pending_skill != -1 and event.is_action_pressed("ui_cancel"):
 		_pending_skill = -1
-		_refresh_controls()
 		_clear_target_highlights()
+		_refresh_controls()
 		get_viewport().set_input_as_handled()
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
@@ -839,6 +935,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			if not _overdrive_button.disabled:
 				_overdrive_button.button_pressed = not _overdrive_button.button_pressed
 				_refresh_controls()
+		KEY_ENTER, KEY_KP_ENTER:
+			if not _lock_button.disabled:
+				_lock_button.pressed.emit()
 		KEY_L:
 			_toggle_log()
 
@@ -863,43 +962,199 @@ func _on_draft_lock() -> void:
 		draft_submitted.emit(_draft_picks.duplicate())
 
 
+func select_troop(uid: int) -> void:
+	if _input_locked:
+		return
+	var legal: Dictionary = snapshot.get("legal", {})
+	if not legal.has(uid):
+		return
+	_selected_troop_uid = uid
+	_pending_skill = -1
+	_clear_target_highlights()
+	_refresh_controls()
+
+
 func _on_skill_pressed(index: int) -> void:
-	var info: Dictionary = snapshot["legal"]["skills"][index]
+	if _selected_troop_uid == -1 or not snapshot.get("legal", {}).has(_selected_troop_uid):
+		return
+	var legal_entry: Dictionary = snapshot["legal"][_selected_troop_uid]
+	var info: Dictionary = legal_entry["skills"][index]
+	if not bool(info["ready"]):
+		return
 	var targets: Array = info["targets"]
 	if targets.is_empty():
-		_send_skill(index, -1)
+		_choose_skill(_selected_troop_uid, index, -1)
 		return
 	_pending_skill = index
 	_clear_target_highlights()
 	for card in _cards:
 		if targets.has(card.uid):
 			card.set_highlight(2)
+		elif card.uid == _selected_troop_uid:
+			card.set_highlight(1)
 	for uid: int in targets:
 		_stage.set_ring(uid, UITheme.DANGER)
 	_prompt("CHOOSE A TARGET — %s   (Esc to cancel)" % String(info["name"]), UITheme.DANGER.lightened(0.3))
 
 
 func _on_card_clicked(uid: int) -> void:
-	if _pending_skill == -1 or _input_locked:
+	if _input_locked:
 		return
-	var targets: Array = snapshot["legal"]["skills"][_pending_skill]["targets"]
-	if targets.has(uid):
-		_send_skill(_pending_skill, uid)
+	if _pending_skill != -1:
+		if snapshot.get("legal", {}).has(_selected_troop_uid):
+			var targets: Array = snapshot["legal"][_selected_troop_uid]["skills"][_pending_skill]["targets"]
+			if targets.has(uid):
+				_choose_skill(_selected_troop_uid, _pending_skill, uid)
+		return
+	var legal: Dictionary = snapshot.get("legal", {})
+	if legal.has(uid):
+		select_troop(uid)
 
 
-func _send_skill(index: int, target_uid: int) -> void:
-	var info: Dictionary = snapshot["legal"]["skills"][index]
-	var overdrive: bool = _overdrive_button.button_pressed and bool(info["can_overdrive"])
+func _choose_skill(uid: int, index: int, target_uid: int) -> void:
+	var can_od: bool = _can_afford_overdrive(uid, index)
+	var use_overdrive: bool = _overdrive_button.button_pressed and can_od
 	_overdrive_button.button_pressed = false
+	_pending_skill = -1
 	_clear_target_highlights()
-	set_input_locked(true)
-	skill_requested.emit(index, target_uid, overdrive)
+	var act: CombatAction = CombatAction.cast(index, target_uid, use_overdrive)
+	_chosen_actions[uid] = act
+	_enforce_overdrive_limits(uid)
+	_auto_advance_selected_troop()
+	_refresh_chosen_action_display()
+	_refresh_controls()
 
 
 func _on_switch_pressed(bench_index: int) -> void:
+	if _selected_troop_uid == -1 or not snapshot.get("legal", {}).has(_selected_troop_uid):
+		return
+	var legal_entry: Dictionary = snapshot["legal"][_selected_troop_uid]
+	if not bool(legal_entry["can_switch"]) or not (legal_entry["bench"] as Array).has(bench_index):
+		return
+	if _is_bench_taken_by_other(bench_index, _selected_troop_uid):
+		return
+	_pending_skill = -1
 	_clear_target_highlights()
+	_chosen_actions[_selected_troop_uid] = CombatAction.switch_to(bench_index)
+	_auto_advance_selected_troop()
+	_refresh_chosen_action_display()
+	_refresh_controls()
+
+
+func _on_lock_actions_pressed() -> void:
+	if not _can_lock_actions():
+		return
 	set_input_locked(true)
-	switch_requested.emit(bench_index)
+	actions_locked.emit(_chosen_actions.duplicate())
+
+
+func _can_lock_actions() -> bool:
+	var legal: Dictionary = snapshot.get("legal", {})
+	if legal.is_empty():
+		return false
+	for uid: int in legal:
+		if not _chosen_actions.has(uid):
+			return false
+	return true
+
+
+func _auto_advance_selected_troop() -> void:
+	var legal: Dictionary = snapshot.get("legal", {})
+	for uid: int in legal:
+		if not _chosen_actions.has(uid):
+			_selected_troop_uid = uid
+			return
+
+
+func _is_bench_taken_by_other(bench_index: int, for_uid: int) -> bool:
+	for uid: int in _chosen_actions:
+		if uid != for_uid:
+			var a: CombatAction = _chosen_actions[uid]
+			if a.kind == CombatTypes.ActionKind.SWITCH and a.bench_index == bench_index:
+				return true
+			if a.kind == CombatTypes.ActionKind.SKILL and a.bench_index == bench_index and a.bench_index != -1:
+				return true
+	return false
+
+
+func _get_available_energy(for_uid: int) -> int:
+	var total: int = _energy[viewer_side]
+	for uid: int in _chosen_actions:
+		if uid != for_uid:
+			var a: CombatAction = _chosen_actions[uid]
+			if a.kind == CombatTypes.ActionKind.SKILL and a.overdrive:
+				if snapshot.get("legal", {}).has(uid):
+					var sk: Dictionary = snapshot["legal"][uid]["skills"][a.skill_index]
+					total -= int(sk.get("overdrive_cost", 0))
+	return maxi(0, total)
+
+
+func _can_afford_overdrive(for_uid: int, skill_index: int) -> bool:
+	if not snapshot.get("legal", {}).has(for_uid):
+		return false
+	var sk: Dictionary = snapshot["legal"][for_uid]["skills"][skill_index]
+	var cost: int = int(sk.get("overdrive_cost", 0))
+	var kind: int = int(sk.get("overdrive_kind", CombatTypes.OverdriveKind.NONE))
+	if kind == CombatTypes.OverdriveKind.NONE or cost <= 0:
+		return false
+	return cost <= _get_available_energy(for_uid)
+
+
+func _enforce_overdrive_limits(changed_uid: int) -> void:
+	var spent: int = 0
+	if _chosen_actions.has(changed_uid):
+		var act: CombatAction = _chosen_actions[changed_uid]
+		if act.kind == CombatTypes.ActionKind.SKILL and act.overdrive:
+			var sk: Dictionary = snapshot["legal"][changed_uid]["skills"][act.skill_index]
+			spent += int(sk.get("overdrive_cost", 0))
+	for uid: int in _chosen_actions:
+		if uid != changed_uid:
+			var act2: CombatAction = _chosen_actions[uid]
+			if act2.kind == CombatTypes.ActionKind.SKILL and act2.overdrive:
+				var sk2: Dictionary = snapshot["legal"][uid]["skills"][act2.skill_index]
+				var cost: int = int(sk2.get("overdrive_cost", 0))
+				if spent + cost > _energy[viewer_side]:
+					act2.overdrive = false
+				else:
+					spent += cost
+
+
+func _action_text_for(uid: int) -> String:
+	if not _chosen_actions.has(uid):
+		return ""
+	var act: CombatAction = _chosen_actions[uid]
+	if act.kind == CombatTypes.ActionKind.SWITCH:
+		var bench_ids: Array = snapshot.get("teams", [{}, {}])[viewer_side].get("bench", [])
+		var bname: String = "?"
+		if act.bench_index >= 0 and act.bench_index < bench_ids.size():
+			var buid: int = int(bench_ids[act.bench_index])
+			if snapshot.get("troops", {}).has(buid):
+				bname = String(snapshot["troops"][buid]["name"])
+		return "Switch → %s" % bname
+	elif act.kind == CombatTypes.ActionKind.SKILL:
+		if not snapshot.get("legal", {}).has(uid):
+			return ""
+		var sk: Dictionary = snapshot["legal"][uid]["skills"][act.skill_index]
+		var sk_name: String = String(sk["name"])
+		var od_prefix: String = "[OD] " if act.overdrive else ""
+		if act.target_uid != -1:
+			return "%s%s → %s" % [od_prefix, sk_name, _n(act.target_uid)]
+		var target_type: int = int(sk.get("target_type", CombatTypes.TargetType.SINGLE_ENEMY))
+		match target_type:
+			CombatTypes.TargetType.ALL_ENEMIES:
+				return "%s%s → All Foes" % [od_prefix, sk_name]
+			CombatTypes.TargetType.ALL_ALLIES:
+				return "%s%s → All Allies" % [od_prefix, sk_name]
+			CombatTypes.TargetType.SELF:
+				return "%s%s → Self" % [od_prefix, sk_name]
+		return "%s%s" % [od_prefix, sk_name]
+	return ""
+
+
+func _refresh_chosen_action_display() -> void:
+	for card in _cards:
+		if card != null and card.side == viewer_side:
+			card.set_chosen_action(_action_text_for(card.uid))
 
 
 # =====================================================================
@@ -922,7 +1177,10 @@ func _highlight_actor(uid: int) -> void:
 
 
 func _clear_target_highlights() -> void:
-	_highlight_actor(int(snapshot.get("current_actor", -1)))
+	if int(snapshot.get("phase", -1)) == CombatTypes.Phase.ACTION_WAIT:
+		_highlight_actor(_selected_troop_uid)
+	else:
+		_highlight_actor(_acting_actor)
 
 
 ## Pops text over the troop's head in the arena (falls back to its card).
@@ -1069,7 +1327,7 @@ func _fill_result(snap: Dictionary) -> void:
 	var won: bool = int(snap["winner"]) == viewer_side
 	_result_label.text = "VICTORY" if won else "DEFEAT"
 	_result_label.add_theme_color_override("font_color", UITheme.GOLD if won else UITheme.DANGER)
-	_result_sub.text = "Decided on cycle %d, turn %d" % [int(snap["cycle"]), int(snap["turn"])]
+	_result_sub.text = "Decided on turn %d" % int(snap["cycle"])
 	_clear(_result_cols)
 	var troops: Dictionary = snap["troops"]
 	var mvp: int = -1

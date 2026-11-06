@@ -9,7 +9,7 @@ var remaining: int = 0
 ## DOT damage per tick, or remaining SHIELD points.
 var value: int = 0
 var source_uid: int = -1
-## Turn number it was applied on; effects don't tick at the end of that same turn.
+## Round it was applied in; effects don't tick at the end of that same round.
 var applied_turn: int = 0
 
 

@@ -13,7 +13,8 @@ magnitude = 0.04
 [sub_resource type="Resource" id="Resource_j0wdt"]
 script = ExtResource("2_bxt3e")
 skill_name = "Thorn Lash"
-description = "Strike one enemy (85% ATK) and heal the partner for 4% of max HP."
+description = "Strike one enemy (85% SPA) and heal the partner for 4% of max HP."
+special = true
 attack_scaling = 0.85
 effects = Array[ExtResource("3_w8jbj")]([SubResource("Resource_l4uc6")])
 energy_gain = 1
@@ -27,7 +28,7 @@ magnitude = 0.1
 
 [sub_resource type="Resource" id="Resource_pnkrj"]
 script = ExtResource("3_w8jbj")
-kind = 6
+kind = 5
 target = 2
 
 [sub_resource type="Resource" id="Resource_fuhqp"]
@@ -57,7 +58,7 @@ duration = 2
 [sub_resource type="Resource" id="Resource_diy5f"]
 script = ExtResource("3_w8jbj")
 target = 2
-stat = 1
+stat = 2
 magnitude = 0.25
 duration = 2
 
@@ -79,11 +80,12 @@ script = ExtResource("1_g53r8")
 troop_id = &"grove_keeper"
 display_name = "Grove Keeper"
 archetype = 3
-max_hp = 1050
-attack = 135
-defense = 110
+max_hp = 980
+attack = 90
+special_attack = 135
+defense = 105
+special_defense = 115
 speed = 107
 crit_chance = 0.05
 effectiveness = 0.1
-effect_resistance = 0.3
 skills = Array[ExtResource("2_bxt3e")]([SubResource("Resource_j0wdt"), SubResource("Resource_fuhqp"), SubResource("Resource_41jsd")])

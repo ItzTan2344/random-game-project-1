@@ -12,6 +12,8 @@ extends Resource
 @export var target_type: CombatTypes.TargetType = CombatTypes.TargetType.SINGLE_ENEMY
 
 @export_group("Damage")
+## Special skills use SPA vs the target's SPD; otherwise ATK vs DEF. `attack_scaling` scales whichever applies.
+@export var special: bool = false
 @export var attack_scaling: float = 0.0
 @export var hp_scaling: float = 0.0
 ## Extra damage multiplier at 100% missing caster HP (scales linearly).
@@ -49,6 +51,7 @@ func to_summary() -> Dictionary:
 		"slot": slot,
 		"passive": is_passive,
 		"cooldown": cooldown,
+		"special": special,
 		"target_type": target_type,
 		"overdrive_kind": overdrive_kind,
 		"overdrive_cost": overdrive_cost,

@@ -13,6 +13,9 @@ var energy: int = 0
 var slot_switch_cd: Array[int] = [0, 0]
 ## Field slots waiting for a Standby replacement.
 var pending_slots: Array[int] = []
+## This round's chosen actions (troop uid -> CombatAction); `actions_locked` once submitted.
+var actions: Dictionary = {}
+var actions_locked: bool = false
 
 
 func _init(p_side: int) -> void:

@@ -50,12 +50,9 @@ func request_draft(side: int, picks: Array[int]) -> void:
 	_publish(engine.submit_draft(side, picks))
 
 
-func use_skill(side: int, skill_index: int, target_uid: int, overdrive: bool = false, bench_index: int = -1) -> void:
-	_publish(engine.submit_action(side, CombatAction.cast(skill_index, target_uid, overdrive, bench_index)))
-
-
-func switch_troop(side: int, bench_index: int) -> void:
-	_publish(engine.submit_action(side, CombatAction.switch_to(bench_index)))
+## `actions`: troop uid -> CombatAction for every active troop that can act this round.
+func lock_actions(side: int, actions: Dictionary) -> void:
+	_publish(engine.submit_actions(side, actions))
 
 
 func choose_replacement(side: int, slot: int, bench_index: int) -> void:
@@ -99,9 +96,10 @@ func _drive_ai() -> void:
 					_publish(engine.submit_draft(s, _ais[s].choose_draft(st.team(s).squad)))
 					return
 		CombatTypes.Phase.ACTION_WAIT:
-			if st.current_actor != null and _ais.has(st.current_actor.side):
-				var s: int = st.current_actor.side
-				_publish(engine.submit_action(s, _ais[s].choose_action(engine)))
+			for s: int in _ais:
+				if not st.team(s).actions_locked:
+					_publish(engine.submit_actions(s, _ais[s].choose_actions(engine)))
+					return
 		CombatTypes.Phase.STANDBY:
 			for s: int in _ais:
 				var team: TeamState = st.team(s)

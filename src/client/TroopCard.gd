@@ -6,7 +6,7 @@ signal clicked(uid: int)
 
 const ARCHETYPE_NAMES: Array[String] = ["Aggro", "Control", "Bruiser", "Pivot"]
 const ARCHETYPE_COLORS: Array[Color] = [Color("#e0603a"), Color("#7a6ff0"), Color("#c9a13b"), Color("#3fb58c")]
-const STAT_SHORT: Array[String] = ["ATK", "DEF", "SPD", "CRIT", "EFF", "RES"]
+const STAT_SHORT: Array[String] = ["ATK", "SPA", "DEF", "SPD", "SPE", "CRIT", "EFF"]
 const BUFF := Color("#6fb8ff")
 const DEBUFF := Color("#ff8a65")
 
@@ -18,10 +18,10 @@ var _style: StyleBoxFlat
 var _portrait: TextureRect
 var _name_label: Label
 var _arch_box: HBoxContainer
+var _action_row: HBoxContainer
 var _hp_trail: ProgressBar
 var _hp_bar: ProgressBar
 var _hp_label: Label
-var _cr_bar: ProgressBar
 var _chips: HFlowContainer
 var _max_hp: int = 1
 var _shield: int = 0
@@ -76,6 +76,10 @@ func _init(p_side: int, p_slot: int) -> void:
 	_arch_box = HBoxContainer.new()
 	header.add_child(_arch_box)
 
+	_action_row = HBoxContainer.new()
+	_action_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(_action_row)
+
 	# HP: a pale trail bar behind the real one drains after a hit.
 	var hp_stack: Control = Control.new()
 	hp_stack.custom_minimum_size = Vector2(0, 18)
@@ -92,9 +96,6 @@ func _init(p_side: int, p_slot: int) -> void:
 	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hp_stack.add_child(_hp_label)
-	_cr_bar = _bar(box, UITheme.GOLD)
-	_cr_bar.custom_minimum_size = Vector2(0, 7)
-	_cr_bar.tooltip_text = "Combat Readiness"
 
 	_chips = HFlowContainer.new()
 	_chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -117,10 +118,10 @@ func clear_card() -> void:
 	_name_label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	_portrait.texture = null
 	_clear(_arch_box)
+	_clear(_action_row)
 	_hp_bar.value = 0
 	_hp_trail.value = 0
 	_hp_label.text = ""
-	_cr_bar.value = 0
 	_clear(_chips)
 	modulate = Color(1, 1, 1, 0.45)
 	set_highlight(0)
@@ -160,8 +161,13 @@ func update_hp(hp: int, shield: int = -1) -> void:
 	set_hp(hp, _max_hp, _shield if shield < 0 else shield)
 
 
-func set_cr(cr: float) -> void:
-	_cr_bar.value = cr
+func set_chosen_action(action_text: String) -> void:
+	_clear(_action_row)
+	if action_text != "":
+		var c: PanelContainer = UITheme.chip(action_text, UITheme.GOLD, 11)
+		c.tooltip_text = "Chosen action: %s" % action_text
+		c.mouse_filter = Control.MOUSE_FILTER_PASS
+		_action_row.add_child(c)
 
 
 func set_effects(effects: Array, cooldowns: Array) -> void:

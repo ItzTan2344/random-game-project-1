@@ -5,12 +5,12 @@ extends RefCounted
 var phase: CombatTypes.Phase = CombatTypes.Phase.PREVIEW
 var teams: Array[TeamState] = []
 var troops: Dictionary[int, TroopInstance] = {}
-var timeline_time: float = 0.0
+## Round counter (the frenzy 'cycle').
 var cycle: int = 1
+## Actions executed so far.
 var turn_count: int = 0
-var current_actor: TroopInstance = null
-var current_slot: int = -1
-var extra_turn_uid: int = -1
+## Whoever acted last (decides a simultaneous wipe).
+var last_actor: TroopInstance = null
 var winner: int = -1
 
 
