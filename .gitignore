@@ -1,12 +1,8 @@
-# Godot 4
+# Godot 4+ specific ignores
 .godot/
+/android/
 *.translation
 export_presets.cfg
-*.import~
-# Mono / C#
-.mono/
-data_*/
-mono_crash.*.json
 # Builds
 build/
 *.exe
