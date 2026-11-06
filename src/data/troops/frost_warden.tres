@@ -1,0 +1,81 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_52k4a"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_jmrc3"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_p5of8"]
+
+[sub_resource type="Resource" id="Resource_cxs60"]
+script = ExtResource("3_p5of8")
+kind = 5
+magnitude = -10.0
+chance = 0.6
+
+[sub_resource type="Resource" id="Resource_wmxib"]
+script = ExtResource("2_jmrc3")
+skill_name = "Rime Strike"
+description = "Strike one enemy (90% ATK); 60% chance to push its CR back 10%."
+attack_scaling = 0.9
+effects = Array[ExtResource("3_p5of8")]([SubResource("Resource_cxs60")])
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_vbd28"]
+script = ExtResource("3_p5of8")
+kind = 6
+target = 1
+
+[sub_resource type="Resource" id="Resource_k7epx"]
+script = ExtResource("3_p5of8")
+kind = 5
+target = 1
+magnitude = 15.0
+
+[sub_resource type="Resource" id="Resource_41vct"]
+script = ExtResource("2_jmrc3")
+skill_name = "Permafrost Heart"
+description = "Passive: when debuffed, cleanse own debuffs and gain +15% CR (3-turn internal cooldown)."
+slot = 1
+is_passive = true
+trigger = 3
+cooldown = 3
+target_type = 3
+effects = Array[ExtResource("3_p5of8")]([SubResource("Resource_vbd28"), SubResource("Resource_k7epx")])
+
+[sub_resource type="Resource" id="Resource_tnfmt"]
+script = ExtResource("3_p5of8")
+kind = 5
+magnitude = -20.0
+
+[sub_resource type="Resource" id="Resource_yps3o"]
+script = ExtResource("3_p5of8")
+stat = 2
+magnitude = -0.25
+duration = 2
+chance = 0.8
+
+[sub_resource type="Resource" id="Resource_qc8mf"]
+script = ExtResource("2_jmrc3")
+skill_name = "Glacial Prison"
+description = "Hit all enemies (85% ATK), push CR back 20%; 80% chance to lower SPD by 25% for 2 turns.
+Overdrive (10): cooldown -2."
+slot = 2
+cooldown = 5
+target_type = 1
+attack_scaling = 0.85
+effects = Array[ExtResource("3_p5of8")]([SubResource("Resource_tnfmt"), SubResource("Resource_yps3o")])
+overdrive_kind = 2
+overdrive_cost = 10
+overdrive_value = 2.0
+
+[resource]
+script = ExtResource("1_52k4a")
+troop_id = &"frost_warden"
+display_name = "Frost Warden"
+archetype = 1
+attack = 155
+defense = 115
+speed = 106
+crit_chance = 0.1
+effectiveness = 0.4
+effect_resistance = 0.35
+skills = Array[ExtResource("2_jmrc3")]([SubResource("Resource_wmxib"), SubResource("Resource_41vct"), SubResource("Resource_qc8mf")])

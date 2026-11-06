@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_j2ygj"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_dxvlb"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_6mjm0"]
+
+[sub_resource type="Resource" id="Resource_le42q"]
+script = ExtResource("3_6mjm0")
+stat = 1
+magnitude = -0.2
+duration = 2
+chance = 0.25
+
+[sub_resource type="Resource" id="Resource_gr1gw"]
+script = ExtResource("2_dxvlb")
+skill_name = "Arc Thrust"
+description = "Strike one enemy (100% ATK); 25% chance to lower DEF for 2 turns."
+attack_scaling = 1.0
+effects = Array[ExtResource("3_6mjm0")]([SubResource("Resource_le42q")])
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_qo1nb"]
+script = ExtResource("3_6mjm0")
+stat = 1
+magnitude = -0.25
+duration = 2
+chance = 0.6
+
+[sub_resource type="Resource" id="Resource_m7c6y"]
+script = ExtResource("2_dxvlb")
+skill_name = "Chain Spark"
+description = "Hit all enemies (75% ATK); 60% chance to lower DEF by 25% for 2 turns."
+slot = 1
+cooldown = 3
+target_type = 1
+attack_scaling = 0.75
+effects = Array[ExtResource("3_6mjm0")]([SubResource("Resource_qo1nb")])
+
+[sub_resource type="Resource" id="Resource_cp02y"]
+script = ExtResource("2_dxvlb")
+skill_name = "Tempest Break"
+description = "Hit all enemies (120% ATK).
+Overdrive (10): +40% damage."
+slot = 2
+cooldown = 5
+target_type = 1
+attack_scaling = 1.2
+overdrive_kind = 4
+overdrive_cost = 10
+overdrive_value = 0.4
+
+[resource]
+script = ExtResource("1_j2ygj")
+troop_id = &"storm_lancer"
+display_name = "Storm Lancer"
+max_hp = 900
+attack = 185
+defense = 95
+speed = 112
+crit_chance = 0.2
+effectiveness = 0.2
+skills = Array[ExtResource("2_dxvlb")]([SubResource("Resource_gr1gw"), SubResource("Resource_m7c6y"), SubResource("Resource_cp02y")])
