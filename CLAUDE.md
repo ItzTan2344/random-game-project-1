@@ -3,7 +3,7 @@
 ## Subagent notes (probed 2026-11-06)
 
 Delegate via T3 `delegate_task`. Both delegates read files, ran PowerShell/git, and launched Godot successfully.
-Neither can view .glb/.obj models or play-test visually; Gemini can view the PNGs from `tools/render_model.gd`.
+Neither can view .glb/.obj models or play-test visually; Gemini can view rendered PNG screenshots.
 
 ### Gemini 3.8 Flash — `providerInstanceId: antigravity`, `model: gemini-3.8-flash`, `options: {thinking_level: low}`
 - Tools: `run_command` (PowerShell), `view_file`, `write_to_file`, `replace_file_content`, `search_web`, `read_url_content`,

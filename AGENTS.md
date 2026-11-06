@@ -21,9 +21,6 @@ Main scene: `res://src/client/main.tscn`. Windows 11, PowerShell.
 ## Code-built models
 - Avatars are GDScript `extends Node3D` scripts in `src/client/avatars/`, built from `BoxMesh` in `_ready()`.
   Style: voxel/blocky, indie low-poly, **not realistic**. Feet on y=0, facing +Z, roughly 1.5–3 units tall.
-- Preview (needs a window, NOT `--headless`):
-  `& "<exe>" --path D:\Game\random_project -s res://tools/render_model.gd -- <res://script.gd> <out.png>`
-- Cost check: `-s res://tools/bench_models.gd -- <res://a.gd> <res://b.gd> ...` (build time, parts, draw calls, materials).
 - Keep it lean: share one material per colour, keep part counts low (~40–60 boxes per regular troop), and merge static
   boxes into one mesh when performance matters. Moving parts (wings, tail) stay separate pivots.
 
