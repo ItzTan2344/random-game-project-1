@@ -42,7 +42,7 @@ const ENERGY_CAP: int = 20
 const DUAL_ATTACK_CAP: float = 0.05
 
 # --- Damage & stats ---
-const DEFENSE_CONSTANT: float = 300.0
+const DEFENSE_CONSTANT: float = 180.0
 const STAT_MOD_MIN: float = -0.5
 const STAT_MOD_MAX: float = 0.5
 

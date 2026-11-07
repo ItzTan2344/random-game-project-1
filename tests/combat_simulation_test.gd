@@ -147,9 +147,9 @@ func _test_formulas() -> void:
 	_check(_near(CombatMath.effect_chance(0.5, 0.4), 0.7), "EFF +40% scales 50% to 70%")
 	_check(_near(CombatMath.effect_chance(0.8, 0.5), 1.0), "effect chance caps at 100%")
 	_check(_near(CombatMath.effect_chance(0.0, 1.0), 0.0), "0% base stays 0%")
-	_check(_near(CombatMath.mitigation(300.0), 0.5), "300 DEF halves damage")
-	_check(CombatMath.final_damage(200.0, 300.0, false, 1.5, 1.0) == 100, "200 raw vs 300 DEF = 100")
-	_check(CombatMath.final_damage(200.0, 300.0, true, 1.5, 1.0) == 150, "crit x1.5 = 150")
+	_check(_near(CombatMath.mitigation(CombatTypes.DEFENSE_CONSTANT), 0.5), "DEFENSE_CONSTANT DEF halves damage")
+	_check(CombatMath.final_damage(200.0, CombatTypes.DEFENSE_CONSTANT, false, 1.5, 1.0) == 100, "200 raw vs DEFENSE_CONSTANT DEF = 100")
+	_check(CombatMath.final_damage(200.0, CombatTypes.DEFENSE_CONSTANT, true, 1.5, 1.0) == 150, "crit x1.5 = 150")
 	_check(_near(CombatMath.frenzy_damage_mult(15), 1.0) and _near(CombatMath.frenzy_damage_mult(17), 1.10), "frenzy damage +5%/round after 15")
 	_check(_near(CombatMath.frenzy_heal_mult(17), 0.90) and _near(CombatMath.frenzy_heal_mult(60), 0.0), "frenzy healing -5%/round, floor 0")
 	_sections_done += 1
@@ -175,8 +175,9 @@ func _test_speed_order_and_damage() -> void:
 	_check(_is_rejected(engine.submit_actions(0, _acts(engine, 0))), "locking twice is rejected")
 	var events: Array[CombatEvent] = engine.submit_actions(1, _acts(engine, 1))
 	_check(_actor_sequence(events) == [a0.uid, b0.uid, a1.uid, b1.uid], "actions resolve in Speed order")
-	# 150 ATK * 1.0 / (1 + 150/300) = 100 per hit; both of A's troops target b0
-	_check(hp_before - b0.hp == 200, "two S1 hits of 100 each (got %d)" % (hp_before - b0.hp))
+	# 150 ATK * 1.0 mitigated by 150 DEF per hit; both of A's troops target b0
+	var per_hit: int = CombatMath.final_damage(150.0, 150.0, false, 1.5, 1.0)
+	_check(hp_before - b0.hp == per_hit * 2, "two S1 hits of %d each (got %d)" % [per_hit, hp_before - b0.hp])
 	_check(st.cycle == 2, "round counter advances after resolution")
 	_check(st.team(0).energy == 0, "dummy S1 has no energy gain")
 
@@ -190,7 +191,7 @@ func _test_speed_order_and_damage() -> void:
 		d.attack = 1
 	var squad_b: Array[TroopData] = _dummy_squad("b", [50, 50, 50, 50, 50, 50])
 	for d in squad_b:
-		d.special_defense = 300
+		d.special_defense = int(CombatTypes.DEFENSE_CONSTANT)
 		d.defense = 0
 	var e2: CombatEngine = _start(squad_a, squad_b)
 	var victim: TroopInstance = e2.state.team(1).active[0]
