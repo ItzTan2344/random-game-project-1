@@ -1,5 +1,5 @@
 extends SceneTree
-## Windowed UI capture: plays the draft and the first human turn, saving PNGs to res://renders/.
+## Windowed UI capture: plays squad select, the draft and a full match, saving PNGs to res://renders/.
 ## Run (not headless): <godot console exe> --path D:\Game\random_project -s res://tools/ui_screenshots.gd
 
 const OUT := "res://renders/"
@@ -16,6 +16,14 @@ func _initialize() -> void:
 func _run(client: BattleClient) -> void:
 	await process_frame
 	var ui: BattleUI = client.ui
+	await _frames(30)
+	_shot("0_squad_select")
+	var ids: Array[StringName] = TroopRegistry.sorted_ids()
+	for k in CombatTypes.DRAFT_BRING:
+		ui._on_squad_toggle(ids[(k * 3) % ids.size()])
+	await _frames(10)
+	_shot("0b_squad_picked")
+	ui._on_squad_find()
 	await _until(func() -> bool: return not ui.snapshot.is_empty())
 	await _frames(20)
 	_shot("1_draft")
