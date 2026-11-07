@@ -1,0 +1,69 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_4ybr0"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_5k1hs"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_7gsep"]
+
+[sub_resource type="Resource" id="Resource_x6yjn"]
+script = ExtResource("2_5k1hs")
+skill_name = "Shield Bash"
+description = "Strike one enemy (50% ATK + 5% max HP)."
+attack_scaling = 0.5
+hp_scaling = 0.05
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_e147h"]
+script = ExtResource("3_7gsep")
+kind = 3
+magnitude = 0.1
+duration = 2
+
+[sub_resource type="Resource" id="Resource_5jy2h"]
+script = ExtResource("2_5k1hs")
+skill_name = "Bulwark Instinct"
+description = "Passive: when the partner is hit, shield it for 10% of Bastion's max HP for 2 turns (2-turn internal cooldown)."
+slot = 1
+is_passive = true
+trigger = 2
+cooldown = 2
+target_type = 2
+effects = Array[ExtResource("3_7gsep")]([SubResource("Resource_e147h")])
+
+[sub_resource type="Resource" id="Resource_ii6ta"]
+script = ExtResource("3_7gsep")
+target = 1
+stat = 2
+magnitude = 0.3
+duration = 2
+
+[sub_resource type="Resource" id="Resource_ma5aa"]
+script = ExtResource("2_5k1hs")
+skill_name = "Earthshaker"
+description = "Hit all enemies (40% ATK + 8% max HP, up to +50% at low HP) and raise own DEF by 30% for 2 turns.
+Overdrive (10): +50% damage."
+slot = 2
+cooldown = 4
+target_type = 1
+attack_scaling = 0.4
+hp_scaling = 0.08
+missing_hp_bonus = 0.65
+effects = Array[ExtResource("3_7gsep")]([SubResource("Resource_ii6ta")])
+overdrive_kind = 4
+overdrive_cost = 10
+overdrive_value = 0.5
+
+[resource]
+script = ExtResource("1_4ybr0")
+troop_id = &"forge_bastion"
+display_name = "Forge Bastion"
+archetype = &"forge"
+role = 2
+max_hp = 1130
+attack = 122
+special_attack = 80
+defense = 128
+special_defense = 92
+speed = 95
+crit_chance = 0.05
+skills = Array[ExtResource("2_5k1hs")]([SubResource("Resource_x6yjn"), SubResource("Resource_5jy2h"), SubResource("Resource_ma5aa")])

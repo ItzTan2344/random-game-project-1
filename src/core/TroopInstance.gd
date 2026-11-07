@@ -11,6 +11,8 @@ var passive_icd: int = 0
 var effects: Array[ActiveEffect] = []
 ## Set once the troop has been on the field (the opponent can see it).
 var revealed: bool = false
+## Archetype field synergy, set by CombatEngine while this troop and its partner share an archetype.
+var synergy: Array[EffectData] = []
 
 
 func _init(p_uid: int, p_data: TroopData, p_side: int) -> void:
@@ -58,6 +60,9 @@ func stat_modifier(stat: CombatTypes.Stat) -> float:
 	for e in effects:
 		if e.kind == CombatTypes.EffectKind.STAT_MOD and e.stat == stat:
 			total += e.magnitude
+	for s in synergy:
+		if s.stat == stat:
+			total += s.magnitude
 	var cap: float = CombatTypes.MAX_SPEED_BUFF if stat == CombatTypes.Stat.SPEED else CombatTypes.STAT_MOD_MAX
 	return clampf(total, CombatTypes.STAT_MOD_MIN, cap)
 
@@ -154,7 +159,9 @@ func to_snapshot() -> Dictionary:
 		"troop_id": String(data.troop_id),
 		"name": data.display_name,
 		"side": side,
-		"archetype": data.archetype,
+		"archetype": String(data.archetype),
+		"synergy": not synergy.is_empty(),
+		"role": data.role,
 		"hp": hp,
 		"max_hp": max_hp(),
 		"shield": shield(),

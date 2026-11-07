@@ -1,4 +1,4 @@
-# Storm Lancer (Aggro): long lance, crested helm, lightning sigil.
+# Storm Lancer (Duelist): long lance, crested helm, lightning sigil.
 extends VoxelTroop
 
 const ARMOR := Color("#2d4e8a")

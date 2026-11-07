@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ArchetypeData" format=3]
+
+[ext_resource type="Script" path="res://src/data/ArchetypeData.gd" id="1_afpmp"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="2_sv0wo"]
+
+[sub_resource type="Resource" id="Resource_qlw73"]
+script = ExtResource("2_sv0wo")
+target = 1
+stat = 5
+magnitude = 0.1
+
+[resource]
+script = ExtResource("1_afpmp")
+archetype_id = &"void"
+display_name = "Void"
+color = Color(0.5568628, 0.30980393, 0.8784314, 1)
+color_dark = Color(0.05490196, 0.039215688, 0.09411765, 1)
+color_light = Color(0.8862745, 0.30980393, 0.6901961, 1)
+tagline = "From the unmade dark, we unravel reality."
+emblem = PackedStringArray("..1..", ".111.", "11011", "10201", "11011", ".111.", "..1..")
+pattern = &"dust"
+description = "Both active troops: +10% crit chance."
+synergy = Array[ExtResource("2_sv0wo")]([SubResource("Resource_qlw73")])

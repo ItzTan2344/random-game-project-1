@@ -1,0 +1,77 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_g04cw"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_4jwlx"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_kw1gi"]
+
+[sub_resource type="Resource" id="Resource_50dtu"]
+script = ExtResource("3_kw1gi")
+stat = 4
+magnitude = -0.15
+duration = 1
+chance = 0.5
+
+[sub_resource type="Resource" id="Resource_8lmxi"]
+script = ExtResource("2_4jwlx")
+skill_name = "Gear Jab"
+description = "Strike one enemy (100% ATK); 50% chance to lower its SPE by 15% for 1 turn."
+attack_scaling = 1.0
+effects = Array[ExtResource("3_kw1gi")]([SubResource("Resource_50dtu")])
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_hhuoo"]
+script = ExtResource("3_kw1gi")
+target = 2
+stat = 4
+magnitude = 0.2
+duration = 2
+
+[sub_resource type="Resource" id="Resource_mgrwm"]
+script = ExtResource("3_kw1gi")
+kind = 6
+target = 1
+magnitude = 2.0
+
+[sub_resource type="Resource" id="Resource_3freo"]
+script = ExtResource("2_4jwlx")
+skill_name = "Overclock"
+description = "Raise SPE of both allies by 20% for 2 turns and gain 2 Team Energy."
+slot = 1
+cooldown = 3
+target_type = 4
+effects = Array[ExtResource("3_kw1gi")]([SubResource("Resource_hhuoo"), SubResource("Resource_mgrwm")])
+
+[sub_resource type="Resource" id="Resource_g1hus"]
+script = ExtResource("3_kw1gi")
+kind = 1
+duration = 1
+chance = 0.8
+
+[sub_resource type="Resource" id="Resource_qj4vb"]
+script = ExtResource("2_4jwlx")
+skill_name = "Time Lock"
+description = "Strike one enemy (120% ATK); 70% chance to Stun for 1 turn.
+Overdrive (10): cooldown -2."
+slot = 2
+cooldown = 5
+attack_scaling = 1.5
+effects = Array[ExtResource("3_kw1gi")]([SubResource("Resource_g1hus")])
+overdrive_kind = 2
+overdrive_cost = 10
+overdrive_value = 2.0
+
+[resource]
+script = ExtResource("1_g04cw")
+troop_id = &"forge_sentinel"
+display_name = "Forge Sentinel"
+archetype = &"forge"
+role = 1
+max_hp = 1100
+attack = 165
+special_attack = 90
+defense = 130
+special_defense = 110
+speed = 108
+effectiveness = 0.35
+skills = Array[ExtResource("2_4jwlx")]([SubResource("Resource_8lmxi"), SubResource("Resource_3freo"), SubResource("Resource_qj4vb")])

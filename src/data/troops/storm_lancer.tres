@@ -57,6 +57,7 @@ overdrive_value = 0.4
 script = ExtResource("1_j2ygj")
 troop_id = &"storm_lancer"
 display_name = "Storm Lancer"
+archetype = &"storm"
 max_hp = 900
 attack = 120
 special_attack = 185

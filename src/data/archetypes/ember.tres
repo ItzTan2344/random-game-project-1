@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ArchetypeData" format=3]
+
+[ext_resource type="Script" path="res://src/data/ArchetypeData.gd" id="1_3y7p2"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="2_mutkd"]
+
+[sub_resource type="Resource" id="Resource_jr5jh"]
+script = ExtResource("2_mutkd")
+target = 1
+magnitude = 0.1
+
+[resource]
+script = ExtResource("1_3y7p2")
+archetype_id = &"ember"
+display_name = "Ember"
+color = Color(0.9098039, 0.31764707, 0.18039216, 1)
+color_dark = Color(0.14117648, 0.078431375, 0.07058824, 1)
+color_light = Color(0.972549, 0.8156863, 0.36078432, 1)
+tagline = "Fan every ember into an inferno; leave nothing unburnt."
+emblem = PackedStringArray("..1..", "..1..", ".111.", ".111.", "11111", "11111", "22222")
+pattern = &"embers"
+description = "Both active troops: +10% ATK."
+synergy = Array[ExtResource("2_mutkd")]([SubResource("Resource_jr5jh")])

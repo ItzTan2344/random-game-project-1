@@ -1,4 +1,4 @@
-# Void Arcanist (Aggro): deep purple robe, hollow dark face, orbiting void shards.
+# Void Arcanist (Duelist): deep purple robe, hollow dark face, orbiting void shards.
 extends VoxelTroop
 
 const ROBE := Color("#3c2366")

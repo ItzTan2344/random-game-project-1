@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ArchetypeData" format=3]
+
+[ext_resource type="Script" path="res://src/data/ArchetypeData.gd" id="1_jou30"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="2_yyq1a"]
+
+[sub_resource type="Resource" id="Resource_dekp0"]
+script = ExtResource("2_yyq1a")
+target = 1
+stat = 6
+magnitude = 0.1
+
+[resource]
+script = ExtResource("1_jou30")
+archetype_id = &"tide"
+display_name = "Tide"
+color = Color(0.18431373, 0.48235294, 1, 1)
+color_dark = Color(0.05882353, 0.12941177, 0.25882354, 1)
+color_light = Color(0.8117647, 0.9098039, 1, 1)
+tagline = "The tide does not strike; it drowns, chills, and recedes at will."
+emblem = PackedStringArray("...11", "..111", ".1111", "11112", "2222.", ".222.", "..2..")
+pattern = &"waves"
+description = "Both active troops: +10% EFF."
+synergy = Array[ExtResource("2_yyq1a")]([SubResource("Resource_dekp0")])

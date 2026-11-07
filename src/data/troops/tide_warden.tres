@@ -1,0 +1,83 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_a8y7m"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_5sdsr"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_pq0ax"]
+
+[sub_resource type="Resource" id="Resource_yyups"]
+script = ExtResource("3_pq0ax")
+stat = 4
+magnitude = -0.15
+duration = 1
+chance = 0.6
+
+[sub_resource type="Resource" id="Resource_3u8by"]
+script = ExtResource("2_5sdsr")
+skill_name = "Rime Strike"
+description = "Strike one enemy (90% SPA); 60% chance to lower its SPE by 15% for 1 turn."
+special = true
+attack_scaling = 0.9
+effects = Array[ExtResource("3_pq0ax")]([SubResource("Resource_yyups")])
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_aawbc"]
+script = ExtResource("3_pq0ax")
+kind = 5
+target = 1
+
+[sub_resource type="Resource" id="Resource_83h35"]
+script = ExtResource("3_pq0ax")
+target = 1
+stat = 4
+magnitude = 0.15
+duration = 2
+
+[sub_resource type="Resource" id="Resource_3xpq4"]
+script = ExtResource("2_5sdsr")
+skill_name = "Permafrost Heart"
+description = "Passive: when debuffed, cleanse own debuffs and gain +15% SPE for 2 turns (3-turn internal cooldown)."
+slot = 1
+is_passive = true
+trigger = 3
+cooldown = 3
+target_type = 3
+effects = Array[ExtResource("3_pq0ax")]([SubResource("Resource_aawbc"), SubResource("Resource_83h35")])
+
+[sub_resource type="Resource" id="Resource_1f647"]
+script = ExtResource("3_pq0ax")
+stat = 4
+magnitude = -0.25
+duration = 2
+chance = 0.8
+
+[sub_resource type="Resource" id="Resource_1xbwa"]
+script = ExtResource("2_5sdsr")
+skill_name = "Glacial Prison"
+description = "Hit all enemies (85% SPA); 80% chance to lower SPE by 25% for 2 turns.
+Overdrive (10): cooldown -2."
+slot = 2
+cooldown = 5
+target_type = 1
+special = true
+attack_scaling = 0.85
+effects = Array[ExtResource("3_pq0ax")]([SubResource("Resource_1f647")])
+overdrive_kind = 2
+overdrive_cost = 10
+overdrive_value = 2.0
+
+[resource]
+script = ExtResource("1_a8y7m")
+troop_id = &"tide_warden"
+display_name = "Tide Warden"
+archetype = &"tide"
+role = 1
+max_hp = 1070
+attack = 100
+special_attack = 176
+defense = 120
+special_defense = 130
+speed = 106
+crit_chance = 0.1
+effectiveness = 0.4
+skills = Array[ExtResource("2_5sdsr")]([SubResource("Resource_3u8by"), SubResource("Resource_3xpq4"), SubResource("Resource_1xbwa")])

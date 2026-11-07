@@ -1,0 +1,73 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_wmrda"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_kk0lq"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_r3smk"]
+
+[sub_resource type="Resource" id="Resource_xjewl"]
+script = ExtResource("3_r3smk")
+magnitude = -0.25
+duration = 2
+chance = 0.35
+
+[sub_resource type="Resource" id="Resource_42iii"]
+script = ExtResource("2_kk0lq")
+skill_name = "Hex Bolt"
+description = "Strike one enemy (100% SPA); 35% chance to lower ATK by 25% for 2 turns."
+special = true
+attack_scaling = 1.0
+effects = Array[ExtResource("3_r3smk")]([SubResource("Resource_xjewl")])
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_el1gr"]
+script = ExtResource("3_r3smk")
+kind = 1
+duration = 1
+chance = 0.5
+
+[sub_resource type="Resource" id="Resource_qstlf"]
+script = ExtResource("2_kk0lq")
+skill_name = "Binding Sigil"
+description = "Strike one enemy (80% SPA); 50% chance to Stun for 1 turn."
+slot = 1
+cooldown = 3
+special = true
+attack_scaling = 0.8
+effects = Array[ExtResource("3_r3smk")]([SubResource("Resource_el1gr")])
+
+[sub_resource type="Resource" id="Resource_fe8k5"]
+script = ExtResource("3_r3smk")
+stat = 4
+magnitude = -0.2
+duration = 2
+
+[sub_resource type="Resource" id="Resource_ng0an"]
+script = ExtResource("2_kk0lq")
+skill_name = "Unravel"
+description = "Hit all enemies (70% SPA) and lower their SPE by 20% for 2 turns.
+Overdrive (10): all effects are guaranteed."
+slot = 2
+cooldown = 4
+target_type = 1
+special = true
+attack_scaling = 0.7
+effects = Array[ExtResource("3_r3smk")]([SubResource("Resource_fe8k5")])
+overdrive_kind = 1
+overdrive_cost = 10
+
+[resource]
+script = ExtResource("1_wmrda")
+troop_id = &"void_weaver"
+display_name = "Void Weaver"
+archetype = &"void"
+role = 1
+max_hp = 980
+attack = 100
+special_attack = 190
+defense = 98
+special_defense = 112
+speed = 114
+crit_chance = 0.1
+effectiveness = 0.45
+skills = Array[ExtResource("2_kk0lq")]([SubResource("Resource_42iii"), SubResource("Resource_qstlf"), SubResource("Resource_ng0an")])

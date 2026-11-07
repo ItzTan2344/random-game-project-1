@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ArchetypeData" format=3]
+
+[ext_resource type="Script" path="res://src/data/ArchetypeData.gd" id="1_r62mx"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="2_o52lu"]
+
+[sub_resource type="Resource" id="Resource_t2ck5"]
+script = ExtResource("2_o52lu")
+target = 1
+stat = 3
+magnitude = 0.1
+
+[resource]
+script = ExtResource("1_r62mx")
+archetype_id = &"grove"
+display_name = "Grove"
+color = Color(0.41960785, 0.7490196, 0.34901962, 1)
+color_dark = Color(0.10980392, 0.15686275, 0.11372549, 1)
+color_light = Color(0.6627451, 0.44313726, 0.24705882, 1)
+tagline = "From poisoned loam to ancient canopy, the wild endures and devours."
+emblem = PackedStringArray("..1..", ".111.", ".121.", ".111.", "1.1.1", "1.1.1", "11.11")
+pattern = &"grain"
+description = "Both active troops: +10% special defense."
+synergy = Array[ExtResource("2_o52lu")]([SubResource("Resource_t2ck5")])

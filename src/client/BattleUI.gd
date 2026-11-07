@@ -13,7 +13,7 @@ const SIDE_COLORS: Array[Color] = [Color("#5fa8ff"), Color("#ff7a6b")]
 const OVERDRIVE_NAMES: Array[String] = ["", "Guarantee Effects", "Reduce Cooldown", "Act First", "Bonus Damage"]
 const TARGET_NAMES: Array[String] = ["Single enemy", "All enemies", "Single ally", "Self", "Both allies"]
 
-@export var playback_speed: float = 1.0
+@export var playback_speed: float = 0.65 # <1 = slower; event delays are divided by this
 
 var viewer_side: int = CombatTypes.Side.A
 var snapshot: Dictionary = {}
@@ -289,7 +289,12 @@ func show_squad_select(roster: Array[Dictionary], preselected: Array[StringName]
 	_clear(_squad_grid)
 	_squad_buttons.clear()
 	_squad_picks.clear()
-	for s: Dictionary in roster:
+	var sorted_roster: Array[Dictionary] = roster.duplicate()
+	sorted_roster.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a["archetype"] != b["archetype"]:
+			return String(a["archetype"]) < String(b["archetype"])
+		return int(a["role"]) < int(b["role"]))
+	for s: Dictionary in sorted_roster:
 		var id: StringName = StringName(s["troop_id"])
 		var b: Button = _troop_tile(s)
 		b.pressed.connect(_on_squad_toggle.bind(id))
@@ -505,7 +510,7 @@ func play_event(e: Dictionary) -> void:
 			_names[actor] = String(d["name"])
 			_sides[actor] = int(d["side"])
 			var card: TroopCard = _cards[int(d["side"]) * 2 + int(d["slot"])]
-			card.bind(actor, String(d["name"]), int(d["archetype"]), _portraits.texture(String(d["troop_id"])))
+			card.bind(actor, String(d["name"]), int(d["role"]), _portraits.texture(String(d["troop_id"])), StringName(d["archetype"]), bool(d["synergy"]))
 			card.set_hp(int(d["hp"]), int(d["max_hp"]), int(d["shield"]))
 			card.set_effects([], [])
 			_stage.place(int(d["side"]), int(d["slot"]), actor, String(d["troop_id"]), true)
@@ -689,7 +694,7 @@ func _refresh_field() -> void:
 			_stage.place(side, slot, uid, String(t["troop_id"]), false)
 			if not bool(t["alive"]):
 				_stage.model_for(uid).set_dead()
-			card.bind(uid, String(t["name"]), int(t["archetype"]), _portraits.texture(String(t["troop_id"])))
+			card.bind(uid, String(t["name"]), int(t["role"]), _portraits.texture(String(t["troop_id"])), StringName(t["archetype"]), bool(t["synergy"]))
 			card.set_hp(int(t["hp"]), int(t["max_hp"]), int(t["shield"]))
 			card.set_effects(t["effects"], t["cooldowns"])
 			if t.has("stats"):
@@ -889,7 +894,7 @@ func _show_draft(snap: Dictionary) -> void:
 	_refresh_draft()
 
 
-## Clickable squad tile: portrait framed in the archetype colour, name, archetype chip, stats, pick badge.
+## Clickable squad tile: portrait framed in the role colour, name, role chip, stats, pick badge.
 func _draft_tile(s: Dictionary, index: int) -> Button:
 	var b: Button = _troop_tile(s)
 	b.pressed.connect(_on_draft_toggle.bind(index))
@@ -901,24 +906,30 @@ func _draft_tile(s: Dictionary, index: int) -> Button:
 	return b
 
 
-## Troop tile shared by squad select and the draft: portrait, name, archetype chip, stats; tooltip lists skills.
+## Troop tile shared by squad select and the draft: portrait, name, role chip, stats; tooltip lists skills.
 func _troop_tile(s: Dictionary) -> Button:
-	var arch: int = int(s["archetype"])
+	var role_i: int = int(s["role"])
 	var b: Button = Button.new()
-	b.custom_minimum_size = Vector2(204, 236)
+	b.custom_minimum_size = Vector2(204, 256)
 	b.tooltip_text = _squad_tooltip(s)
+	var tile_arch: ArchetypeData = ArchetypeRegistry.find(StringName(s["archetype"]))
+	if tile_arch != null:
+		b.add_child(ArchetypeBackdrop.new(tile_arch))
 	var v: VBoxContainer = _vbox(b, 4)
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 10)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	var ic: PanelContainer = _portraits.icon(String(s["troop_id"]), TroopCard.ARCHETYPE_COLORS[arch], 96)
+	var ic: PanelContainer = _portraits.icon(String(s["troop_id"]), TroopCard.ROLE_COLORS[role_i], 96)
 	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(ic)
 	var name_l: Label = _label(v, &"Header")
 	name_l.text = String(s["name"])
 	name_l.add_theme_font_size_override("font_size", 17)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var chip: PanelContainer = UITheme.chip(TroopCard.ARCHETYPE_NAMES[arch], TroopCard.ARCHETYPE_COLORS[arch], 11)
+	var chip: PanelContainer = UITheme.chip(TroopCard.ROLE_NAMES[role_i], TroopCard.ROLE_COLORS[role_i], 11)
 	chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var arch_chip: PanelContainer = _archetype_chip(s, Control.SIZE_SHRINK_CENTER)
+	if arch_chip != null:
+		v.add_child(arch_chip)
 	v.add_child(chip)
 	var stats: Label = _label(v, &"Dim")
 	stats.text = "HP %d  SPE %d\nATK %d  SPA %d\nDEF %d  SPD %d  EFF %d%%" % [
@@ -931,7 +942,7 @@ func _troop_tile(s: Dictionary) -> Button:
 
 ## Read-only opponent tile (hover for skills).
 func _enemy_tile(s: Dictionary) -> PanelContainer:
-	var arch: int = int(s["archetype"])
+	var role_i: int = int(s["role"])
 	var p: PanelContainer = PanelContainer.new()
 	p.tooltip_text = _squad_tooltip(s)
 	var row: HBoxContainer = _hbox(p, 10)
@@ -941,8 +952,11 @@ func _enemy_tile(s: Dictionary) -> PanelContainer:
 	var name_l: Label = _label(v, &"Header")
 	name_l.text = String(s["name"])
 	name_l.add_theme_font_size_override("font_size", 16)
-	var chip: PanelContainer = UITheme.chip(TroopCard.ARCHETYPE_NAMES[arch], TroopCard.ARCHETYPE_COLORS[arch], 11)
+	var chip: PanelContainer = UITheme.chip(TroopCard.ROLE_NAMES[role_i], TroopCard.ROLE_COLORS[role_i], 11)
 	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var arch_chip: PanelContainer = _archetype_chip(s, Control.SIZE_SHRINK_BEGIN)
+	if arch_chip != null:
+		v.add_child(arch_chip)
 	v.add_child(chip)
 	_label(v, &"Dim").text = "HP %d  SPE %d  EFF %d%%\nATK %d  SPA %d  DEF %d  SPD %d" % [
 		s["max_hp"], s["speed"], roundi(float(s["effectiveness"]) * 100.0),
@@ -984,6 +998,9 @@ func _refresh_draft() -> void:
 
 func _squad_tooltip(s: Dictionary) -> String:
 	var lines: PackedStringArray = []
+	var arch: ArchetypeData = ArchetypeRegistry.find(StringName(s["archetype"]))
+	if arch != null:
+		lines.append("%s family synergy: %s" % [arch.display_name, arch.description])
 	for sk: Dictionary in s["skills"]:
 		var spec: String = " [SPECIAL]" if bool(sk.get("special", false)) else ""
 		lines.append("S%d %s%s%s: %s" % [int(sk["slot"]) + 1, sk["name"], spec, " (passive)" if bool(sk["passive"]) else " (CD %d)" % int(sk["cooldown"]), sk["description"]])
@@ -1456,3 +1473,13 @@ func _fill_result(snap: Dictionary) -> void:
 			dmg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		head.text = "%s — %d damage" % ["YOU" if side == viewer_side else "FOE", total]
 		head.add_theme_color_override("font_color", SIDE_COLORS[side])
+
+
+## Archetype (family) chip for a troop summary, or null if it has none.
+func _archetype_chip(s: Dictionary, h_flags: int) -> PanelContainer:
+	var arch: ArchetypeData = ArchetypeRegistry.find(StringName(s["archetype"]))
+	if arch == null:
+		return null
+	var c: PanelContainer = UITheme.chip(arch.display_name, arch.color, 11)
+	c.size_flags_horizontal = h_flags
+	return c

@@ -4,8 +4,8 @@ extends PanelContainer
 
 signal clicked(uid: int)
 
-const ARCHETYPE_NAMES: Array[String] = ["Aggro", "Control", "Bruiser", "Pivot"]
-const ARCHETYPE_COLORS: Array[Color] = [Color("#e0603a"), Color("#7a6ff0"), Color("#c9a13b"), Color("#3fb58c")]
+const ROLE_NAMES: Array[String] = ["Duelist", "Controller", "Tanker", "Pivot"]
+const ROLE_COLORS: Array[Color] = [Color("#e0603a"), Color("#7a6ff0"), Color("#c9a13b"), Color("#3fb58c")]
 const STAT_SHORT: Array[String] = ["ATK", "SPA", "DEF", "SPD", "SPE", "CRIT", "EFF"]
 const BUFF := Color("#6fb8ff")
 const DEBUFF := Color("#ff8a65")
@@ -27,6 +27,7 @@ var _max_hp: int = 1
 var _shield: int = 0
 var _highlight: int = 0
 var _hovered: bool = false
+var _arch: ArchetypeData
 var _trail_tween: Tween
 
 
@@ -106,6 +107,11 @@ func _init(p_side: int, p_slot: int) -> void:
 	clear_card()
 
 
+func _draw() -> void:
+	if _arch != null:
+		ArchetypePattern.draw(self, size, _arch)
+
+
 func _gui_input(event: InputEvent) -> void:
 	var mb: InputEventMouseButton = event as InputEventMouseButton
 	if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and uid != -1:
@@ -123,17 +129,35 @@ func clear_card() -> void:
 	_hp_trail.value = 0
 	_hp_label.text = ""
 	_clear(_chips)
+	_arch = null
+	queue_redraw()
+	_style.set_border_width_all(2)
+	_style.border_width_bottom = 4
+	_restyle()
 	modulate = Color(1, 1, 1, 0.45)
 	set_highlight(0)
 
 
-func bind(p_uid: int, troop_name: String, archetype: int, portrait: Texture2D) -> void:
+func bind(p_uid: int, troop_name: String, role: int, portrait: Texture2D, archetype: StringName = &"", synergy: bool = false) -> void:
 	uid = p_uid
 	_portrait.texture = portrait
 	_name_label.text = troop_name
 	_name_label.add_theme_color_override("font_color", UITheme.TEXT)
 	_clear(_arch_box)
-	_arch_box.add_child(UITheme.chip(ARCHETYPE_NAMES[archetype], ARCHETYPE_COLORS[archetype], 11))
+	_arch_box.add_child(UITheme.chip(ROLE_NAMES[role], ROLE_COLORS[role], 11))
+	var arch: ArchetypeData = ArchetypeRegistry.find(archetype)
+	if arch != null:
+		var ac: PanelContainer = UITheme.chip(arch.display_name + (" *" if synergy else ""), arch.color, 11)
+		ac.mouse_filter = Control.MOUSE_FILTER_STOP
+		var state_text: String = "Synergy ACTIVE." if synergy else "Synergy needs both active troops to be %s." % arch.display_name
+		ac.tooltip_text = "%s family: %s\n%s\n%s" % [arch.display_name, arch.tagline, arch.description, state_text]
+		_arch_box.add_child(ArchetypeEmblem.new(arch, 2))
+		_arch_box.add_child(ac)
+	_arch = arch
+	queue_redraw()
+	_style.set_border_width_all(arch.frame_width if arch != null else 2)
+	_style.border_width_bottom = (arch.frame_width if arch != null else 2) + 2
+	_restyle()
 	modulate = Color.WHITE
 
 
@@ -207,9 +231,9 @@ func _set_hover(on: bool) -> void:
 
 
 func _restyle() -> void:
-	var base: Color = UITheme.PANEL.lerp(BattleUI.SIDE_COLORS[side], 0.1)
+	var base: Color = (_arch.color_dark if _arch != null else UITheme.PANEL).lerp(BattleUI.SIDE_COLORS[side], 0.08)
 	_style.bg_color = base
-	_style.border_color = UITheme.EDGE
+	_style.border_color = _arch.color.darkened(0.25) if _arch != null else UITheme.EDGE
 	_style.shadow_size = 0
 	match _highlight:
 		1:

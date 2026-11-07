@@ -343,10 +343,10 @@ func _test_roster_and_passives() -> void:
 	_check(squad_a.size() == 6 and squad_b.size() == 6, "random squads have 6 troops")
 	var all: Dictionary[StringName, TroopData] = TroopRegistry.load_all()
 	_check(all.size() >= CombatTypes.DRAFT_BRING, "roster has at least %d troops" % CombatTypes.DRAFT_BRING)
-	var per_arch: Dictionary = {}
+	var per_role: Dictionary = {}
 	var special_skills: int = 0
 	for d: TroopData in all.values():
-		per_arch[d.archetype] = int(per_arch.get(d.archetype, 0)) + 1
+		per_role[d.role] = int(per_role.get(d.role, 0)) + 1
 		_check(d.skills.size() == 3, "%s has 3 skills" % d.display_name)
 		_check(d.attack > 0 and d.special_attack > 0 and d.defense > 0 and d.special_defense > 0 and d.speed > 0, "%s has all seven stats" % d.display_name)
 		_check(d.skills[0].cooldown == 0 and d.skills[0].dual_attack_chance <= CombatTypes.DUAL_ATTACK_CAP, "%s S1: no cooldown, dual <= cap" % d.display_name)
@@ -357,11 +357,24 @@ func _test_roster_and_passives() -> void:
 		for s in d.skills:
 			special_skills += 1 if s.special else 0
 	_check(special_skills > 0, "some skills are special")
-	for arch in CombatTypes.Archetype.values():
-		_check(int(per_arch.get(arch, 0)) >= 1, "archetype %s has troops" % CombatTypes.Archetype.keys()[arch])
+	for arch in CombatTypes.Role.values():
+		_check(int(per_role.get(arch, 0)) >= 1, "role %s has troops" % CombatTypes.Role.keys()[arch])
+
+	# Archetypes: every troop has a family; two same-family actives get its synergy, which ends when one falls.
+	for d: TroopData in all.values():
+		_check(ArchetypeRegistry.find(d.archetype) != null, "%s has a valid archetype" % d.display_name)
+	var fam: Array[TroopData] = _dummy_squad("a", [300, 300, 300, 300, 60, 60])
+	fam[0] = all[&"ember_aggro"]
+	fam[1] = all[&"ember_ranger"]
+	var fam_engine: CombatEngine = _start(fam, _dummy_squad("b", [50, 50, 50, 50, 50, 50]))
+	var f0: TroopInstance = fam_engine.state.team(0).active[0]
+	_check(_near(f0.stat_modifier(CombatTypes.Stat.ATTACK), 0.1), "ember pair gets +10% ATK synergy")
+	f0.hp = 0
+	fam_engine._refresh_synergy()
+	_check(fam_engine.state.team(0).active[1].synergy.is_empty(), "synergy ends when the partner falls")
 
 	# Courier entry passive: +20% SPE and 2 Team Energy on switch-in.
-	var courier: TroopData = all[&"swift_courier"]
+	var courier: TroopData = all[&"storm_courier"]
 	var squad: Array[TroopData] = _dummy_squad("a", [300, 60, 60, 60, 60, 60])
 	squad[2] = courier
 	var engine: CombatEngine = _start(squad, _dummy_squad("b", [50, 50, 50, 50, 50, 50]))
@@ -470,8 +483,8 @@ func _test_determinism() -> void:
 	var a: Array[Dictionary] = _event_trace(4242)
 	var b: Array[Dictionary] = _event_trace(4242)
 	_check(a.size() > 50 and a == b, "same seed -> identical event log (%d events)" % a.size())
-	var cached: TroopData = TroopRegistry.load_all()[&"ember_duelist"]
-	var on_disk: TroopData = ResourceLoader.load(TroopRegistry.TROOP_DIR + "ember_duelist.tres", "", ResourceLoader.CACHE_MODE_IGNORE)
+	var cached: TroopData = TroopRegistry.load_all()[&"ember_aggro"]
+	var on_disk: TroopData = ResourceLoader.load(TroopRegistry.TROOP_DIR + "ember_aggro.tres", "", ResourceLoader.CACHE_MODE_IGNORE)
 	_check(cached.max_hp == on_disk.max_hp and cached.skills[0].cooldown == on_disk.skills[0].cooldown, "TroopData templates unchanged after matches")
 	_sections_done += 1
 

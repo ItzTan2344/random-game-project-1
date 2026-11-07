@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ArchetypeData" format=3]
+
+[ext_resource type="Script" path="res://src/data/ArchetypeData.gd" id="1_vmldr"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="2_yuoeb"]
+
+[sub_resource type="Resource" id="Resource_bn2pt"]
+script = ExtResource("2_yuoeb")
+target = 1
+stat = 2
+magnitude = 0.1
+
+[resource]
+script = ExtResource("1_vmldr")
+archetype_id = &"forge"
+display_name = "Forge"
+color = Color(0.6627451, 0.7137255, 0.76862746, 1)
+color_dark = Color(0.13333334, 0.14901961, 0.18039216, 1)
+color_light = Color(0.7607843, 0.4117647, 0.16862746, 1)
+tagline = "Steeled in blast furnaces, grinding forward in clockwork unison."
+emblem = PackedStringArray("1.1.1", "11111", "11211", "11111", ".111.", "11111", "11111")
+frame_width = 4
+pattern = &"tread"
+description = "Both active troops: +10% DEF."
+synergy = Array[ExtResource("2_yuoeb")]([SubResource("Resource_bn2pt")])

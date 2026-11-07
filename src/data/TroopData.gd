@@ -4,7 +4,9 @@ extends Resource
 
 @export var troop_id: StringName = &""
 @export var display_name: String = ""
-@export var archetype: CombatTypes.Archetype = CombatTypes.Archetype.AGGRO
+## Family id (see ArchetypeData). Empty = no family.
+@export var archetype: StringName = &""
+@export var role: CombatTypes.Role = CombatTypes.Role.DUELIST
 @export var max_hp: int = 1000
 ## Physical attack / defense (ATK, DEF) and special attack / defense (SPA, SPD). Speed is SPE.
 @export var attack: int = 150
@@ -27,7 +29,8 @@ func to_summary() -> Dictionary:
 	return {
 		"troop_id": String(troop_id),
 		"name": display_name,
-		"archetype": archetype,
+		"archetype": String(archetype),
+		"role": role,
 		"max_hp": max_hp,
 		"attack": attack,
 		"special_attack": special_attack,

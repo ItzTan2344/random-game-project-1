@@ -12,6 +12,9 @@ var _trigger_queue: Array[Dictionary] = []
 var _next_uid: int = 1
 
 
+var _archetypes: Dictionary[StringName, ArchetypeData] = ArchetypeRegistry.load_all()
+
+
 func _init(seed_value: int = 0) -> void:
 	rng.seed = seed_value
 
@@ -513,6 +516,7 @@ func _apply_damage(source: TroopInstance, target: TroopInstance, amount: int, cr
 	if target.hp == 0:
 		target.effects.clear()
 		_emit(CombatTypes.EventType.KO, target.uid, -1, 0.0, {"side": target.side, "slot": state.team(target.side).slot_of(target)})
+		_refresh_synergy()
 
 
 func _apply_effect(caster: TroopInstance, target: TroopInstance, effect: EffectData, guaranteed: bool) -> void:
@@ -587,14 +591,27 @@ func _do_switch(actor: TroopInstance, bench_index: int, tactical: bool) -> void:
 ## Places a troop on the field: stat-debuff cleanse, ON_SWITCH_IN passives.
 func _enter_field(troop: TroopInstance, slot: int) -> void:
 	troop.revealed = true
+	_refresh_synergy()
 	var cleansed: int = troop.cleanse(true)
 	_emit(CombatTypes.EventType.TROOP_ENTERED, troop.uid, -1, 0.0, {
 		"side": troop.side, "slot": slot, "name": troop.data.display_name, "troop_id": String(troop.data.troop_id),
-		"archetype": troop.data.archetype, "hp": troop.hp, "max_hp": troop.max_hp(), "shield": troop.shield(),
+		"archetype": String(troop.data.archetype), "synergy": not troop.synergy.is_empty(), "role": troop.data.role, "hp": troop.hp, "max_hp": troop.max_hp(), "shield": troop.shield(),
 	})
 	if cleansed > 0:
 		_emit(CombatTypes.EventType.CLEANSED, troop.uid, troop.uid, float(cleansed))
 	_queue_trigger(CombatTypes.Trigger.ON_SWITCH_IN, troop, troop)
+
+
+## Archetype synergy: both living actives of a side share an archetype -> each gets that archetype's bonus.
+func _refresh_synergy() -> void:
+	for side in 2:
+		var pair: Array[TroopInstance] = state.actives(side)
+		var fx: Array[EffectData] = []
+		if pair.size() == CombatTypes.ACTIVE_SLOTS and pair[0].data.archetype == pair[1].data.archetype and _archetypes.has(pair[0].data.archetype):
+			fx = _archetypes[pair[0].data.archetype].synergy
+		for t: TroopInstance in state.troops.values():
+			if t.side == side:
+				t.synergy.assign(fx if state.is_active(t) else [])
 
 
 func _gain_energy(side: int, amount: int) -> void:
