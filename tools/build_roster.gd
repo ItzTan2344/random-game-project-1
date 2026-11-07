@@ -122,7 +122,7 @@ func _roster() -> Array[TroopData]:
 	var roster: Array[TroopData] = []
 
 	# ---------------- Duelist ----------------
-	roster.append(_troop("ember_aggro", "Ember Aggro", &"ember", A.DUELIST, [245, 103, 66, 48, 47, 68, 0.2, 1.5, 0.0], [
+	roster.append(_troop("ember_aggro", "Ember Aggro", &"ember", A.DUELIST, [280, 103, 66, 56, 47, 68, 0.2, 1.5, 0.0], [
 		_s1("Flicker Slash", "Strike one enemy (100% ATK).", {"attack_scaling": 1.0}),
 		_skill("Blade Rush", "Strike one enemy (130% ATK) and gain +20% SPE for 2 turns.", 1, T.SINGLE_ENEMY, 2,
 			{"attack_scaling": 1.3}, [_fx(K.STAT_MOD, ET.SELF, 0.2, 2, 1.0, ST.SPEED)]),
@@ -154,14 +154,14 @@ func _roster() -> Array[TroopData]:
 			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.15, 1, 0.6, ST.SPEED)]),
 		_passive("Permafrost Heart", "Passive: when debuffed, cleanse own debuffs and gain +15% SPE for 2 turns (3-turn internal cooldown).",
 			TR.ON_DEBUFF_RECEIVED, 3, T.SELF, [_fx(K.CLEANSE, ET.SELF, 0.0), _fx(K.STAT_MOD, ET.SELF, 0.15, 2, 1.0, ST.SPEED)]),
-		_skill("Glacial Prison", "Hit all enemies (85% ATK); 80% chance to lower SPE by 25% for 2 turns.\nOverdrive (10): cooldown -2.", 2, T.ALL_ENEMIES, 5,
-			{"special": true, "attack_scaling": 0.85, "overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 10, "overdrive_value": 2.0},
-			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.25, 2, 0.8, ST.SPEED)]),
+		_skill("Glacial Prison", "Hit all enemies (70% ATK); 65% chance to lower SPE by 25% for 2 turns.\nOverdrive (10): cooldown -2.", 2, T.ALL_ENEMIES, 5,
+			{"special": true, "attack_scaling": 0.7, "overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 10, "overdrive_value": 2.0},
+			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.25, 2, 0.65, ST.SPEED)]),
 	]))
 
 	# ---------------- Tanker ----------------
-	roster.append(_troop("forge_bastion", "Forge Bastion", &"forge", A.TANKER, [340, 73, 48, 77, 55, 57, 0.05, 1.5, 0.0], [
-		_s1("Shield Bash", "Strike one enemy (50% ATK + 10% max HP).", {"attack_scaling": 0.5, "hp_scaling": 0.1}),
+	roster.append(_troop("forge_bastion", "Forge Bastion", &"forge", A.TANKER, [340, 73, 48, 77, 55, 62, 0.05, 1.5, 0.0], [
+		_s1("Shield Bash", "Strike one enemy (50% ATK + 14% max HP).", {"attack_scaling": 0.5, "hp_scaling": 0.14}),
 		_passive("Bulwark Instinct", "Passive: when the partner is hit, shield it for 10% of Bastion's max HP for 2 turns (2-turn internal cooldown).",
 			TR.ON_ALLY_HIT, 2, T.SINGLE_ALLY, [_fx(K.SHIELD, ET.SKILL_TARGETS, 0.10, 2)]),
 		_skill("Earthshaker", "Hit all enemies (40% ATK + 8% max HP, up to +50% at low HP) and raise own DEF by 30% for 2 turns.\nOverdrive (10): +50% damage.", 2, T.ALL_ENEMIES, 4,
@@ -179,31 +179,31 @@ func _roster() -> Array[TroopData]:
 
 	# ---------------- Pivot / Switch-Synergy ----------------
 	roster.append(_troop("storm_courier", "Storm Courier", &"storm", A.PIVOT, [280, 109, 54, 57, 51, 71, 0.15, 1.5, 0.2], [
-		_s1("Quick Jab", "Strike one enemy (95% ATK). Generates 2 Team Energy.", {"attack_scaling": 0.95, "energy_gain": 2}),
-		_passive("Slipstream Entry", "Passive: on switch-in, gain +20% SPE for 2 turns and 2 Team Energy (2-turn internal cooldown).",
-			TR.ON_SWITCH_IN, 2, T.SELF, [_fx(K.STAT_MOD, ET.SELF, 0.2, 2, 1.0, ST.SPEED), _fx(K.ENERGY, ET.SELF, 2.0)]),
+		_s1("Quick Jab", "Strike one enemy (95% ATK). Generates 1 Team Energy.", {"attack_scaling": 0.95, "energy_gain": 1}),
+		_passive("Slipstream Entry", "Passive: on switch-in, gain +20% SPE for 2 turns and 1 Team Energy (2-turn internal cooldown).",
+			TR.ON_SWITCH_IN, 2, T.SELF, [_fx(K.STAT_MOD, ET.SELF, 0.2, 2, 1.0, ST.SPEED), _fx(K.ENERGY, ET.SELF, 1.0)]),
 		_skill("Relay Strike", "Strike one enemy (140% ATK), raise the partner's SPE by 20% for 2 turns, then switch out with a benched troop.\nOverdrive (8): cooldown -2.", 2, T.SINGLE_ENEMY, 4,
 			{"attack_scaling": 1.4, "self_switch_after": true, "overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 8, "overdrive_value": 2.0},
 			[_fx(K.STAT_MOD, ET.PARTNER, 0.2, 2, 1.0, ST.SPEED)]),
 	]))
 	roster.append(_troop("grove_keeper", "Grove Keeper", &"grove", A.PIVOT, [295, 54, 81, 63, 69, 64, 0.05, 1.5, 0.1], [
-		_s1("Thorn Lash", "Strike one enemy (85% ATK) and heal the partner for 4% of max HP.", {"special": true, "attack_scaling": 0.85},
-			[_fx(K.HEAL, ET.PARTNER, 0.04)]),
+		_s1("Thorn Lash", "Strike one enemy (85% ATK) and heal the partner for 8% of max HP.", {"special": true, "attack_scaling": 0.85},
+			[_fx(K.HEAL, ET.PARTNER, 0.08)]),
 		_passive("Verdant Arrival", "Passive: on switch-in, heal both allies 10% of max HP and cleanse their debuffs (3-turn internal cooldown).",
 			TR.ON_SWITCH_IN, 3, T.ALL_ALLIES, [_fx(K.HEAL, ET.ALLIES, 0.10), _fx(K.CLEANSE, ET.ALLIES, 0.0)]),
-		_skill("Sanctuary Bloom", "Heal both allies 18% max HP, shield them for 12% for 2 turns, raise DEF by 25% for 2 turns.\nOverdrive (10): cooldown -2.", 2, T.ALL_ALLIES, 5,
+		_skill("Sanctuary Bloom", "Heal both allies 18% max HP, shield them for 12% for 2 turns, raise DEF by 25% for 2 turns.\nOverdrive (10): cooldown -2.", 2, T.ALL_ALLIES, 4,
 			{"overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 10, "overdrive_value": 2.0},
 			[_fx(K.HEAL, ET.ALLIES, 0.18), _fx(K.SHIELD, ET.ALLIES, 0.12, 2), _fx(K.STAT_MOD, ET.ALLIES, 0.25, 2, 1.0, ST.DEFENSE)]),
 	]))
 
 	# ---------------- Expansion: Duelist ----------------
-	roster.append(_troop("ember_ranger", "Ember Ranger", &"ember", A.DUELIST, [260, 107, 54, 51, 48, 70, 0.3, 1.6, 0.0], [
+	roster.append(_troop("ember_ranger", "Ember Ranger", &"ember", A.DUELIST, [280, 107, 54, 58, 48, 70, 0.3, 1.6, 0.0], [
 		_s1("Ember Arrow", "Strike one enemy (100% ATK); 30% chance to Burn it for 2 turns.", {"attack_scaling": 1.0},
 			[_fx(K.DOT, ET.SKILL_TARGETS, 0.2, 2, 0.3)]),
 		_skill("Volley", "Hit all enemies (70% ATK, +25% vs debuffed).", 1, T.ALL_ENEMIES, 3,
 			{"attack_scaling": 0.7, "bonus_vs_debuffed": 0.25}),
-		_skill("Piercing Shot", "Strike one enemy (220% ATK).\nOverdrive (15): act first this round.", 2, T.SINGLE_ENEMY, 4,
-			{"attack_scaling": 2.2, "overdrive_kind": OD.ACT_FIRST, "overdrive_cost": 15}),
+		_skill("Piercing Shot", "Strike one enemy (220% ATK).\nOverdrive (11): act first this round.", 2, T.SINGLE_ENEMY, 4,
+			{"attack_scaling": 2.2, "overdrive_kind": OD.ACT_FIRST, "overdrive_cost": 11}),
 	]))
 	roster.append(_troop("void_arcanist", "Void Arcanist", &"void", A.DUELIST, [250, 54, 117, 48, 57, 66, 0.15, 1.5, 0.1], [
 		_s1("Void Bolt", "Strike one enemy (100% ATK).", {"special": true, "attack_scaling": 1.0}),
@@ -268,11 +268,11 @@ func _roster() -> Array[TroopData]:
 			{"special": true, "attack_scaling": 0.9, "self_switch_after": true, "overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 8, "overdrive_value": 2.0},
 			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.15, 2, 1.0, ST.SPEED)]),
 	]))
-	roster.append(_troop("void_fox", "Void Fox", &"void", A.PIVOT, [270, 111, 48, 54, 51, 71, 0.2, 1.5, 0.25], [
+	roster.append(_troop("void_fox", "Void Fox", &"void", A.PIVOT, [270, 98, 48, 54, 51, 71, 0.2, 1.5, 0.25], [
 		_s1("Nip", "Strike one enemy (85% ATK); 30% chance to lower its DEF by 20% for 2 turns.", {"attack_scaling": 0.85},
 			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.2, 2, 0.3, ST.DEFENSE)]),
-		_passive("Ambush", "Passive: on switch-in, lower all enemies' SPE by 15% for 2 turns (2-turn internal cooldown).",
-			TR.ON_SWITCH_IN, 2, T.SELF, [_fx(K.STAT_MOD, ET.ENEMIES, -0.15, 2, 1.0, ST.SPEED)]),
+		_passive("Ambush", "Passive: on switch-in, lower all enemies' SPE by 10% for 2 turns (2-turn internal cooldown).",
+			TR.ON_SWITCH_IN, 2, T.SELF, [_fx(K.STAT_MOD, ET.ENEMIES, -0.10, 2, 1.0, ST.SPEED)]),
 		_skill("Vanishing Strike", "Strike one enemy (150% ATK, +30% vs debuffed), then switch out with a benched troop.\nOverdrive (12): act first this round.", 2, T.SINGLE_ENEMY, 4,
 			{"attack_scaling": 1.5, "bonus_vs_debuffed": 0.3, "self_switch_after": true, "overdrive_kind": OD.ACT_FIRST, "overdrive_cost": 12}),
 	]))

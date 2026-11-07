@@ -24,13 +24,13 @@ dual_attack_chance = 0.05
 script = ExtResource("3_d0tgi")
 target = 4
 stat = 4
-magnitude = -0.15
+magnitude = -0.1
 duration = 2
 
 [sub_resource type="Resource" id="Resource_lbn7q"]
 script = ExtResource("2_u5j2d")
 skill_name = "Ambush"
-description = "Passive: on switch-in, lower all enemies' SPE by 15% for 2 turns (2-turn internal cooldown)."
+description = "Passive: on switch-in, lower all enemies' SPE by 10% for 2 turns (2-turn internal cooldown)."
 slot = 1
 is_passive = true
 trigger = 1
@@ -58,7 +58,7 @@ display_name = "Void Fox"
 archetype = &"void"
 role = 3
 max_hp = 270
-attack = 111
+attack = 98
 special_attack = 48
 defense = 54
 special_defense = 51

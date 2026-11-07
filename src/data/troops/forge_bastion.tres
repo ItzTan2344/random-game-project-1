@@ -7,9 +7,9 @@
 [sub_resource type="Resource" id="Resource_x6yjn"]
 script = ExtResource("2_5k1hs")
 skill_name = "Shield Bash"
-description = "Strike one enemy (50% ATK + 10% max HP)."
+description = "Strike one enemy (50% ATK + 14% max HP)."
 attack_scaling = 0.5
-hp_scaling = 0.1
+hp_scaling = 0.14
 energy_gain = 1
 dual_attack_chance = 0.05
 
@@ -64,6 +64,6 @@ attack = 73
 special_attack = 48
 defense = 77
 special_defense = 55
-speed = 57
+speed = 62
 crit_chance = 0.05
 skills = Array[ExtResource("2_5k1hs")]([SubResource("Resource_x6yjn"), SubResource("Resource_5jy2h"), SubResource("Resource_ma5aa")])

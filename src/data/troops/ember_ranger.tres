@@ -34,22 +34,22 @@ bonus_vs_debuffed = 0.25
 script = ExtResource("2_xc816")
 skill_name = "Piercing Shot"
 description = "Strike one enemy (220% ATK).
-Overdrive (15): act first this round."
+Overdrive (11): act first this round."
 slot = 2
 cooldown = 4
 attack_scaling = 2.2
 overdrive_kind = 3
-overdrive_cost = 15
+overdrive_cost = 11
 
 [resource]
 script = ExtResource("1_hj088")
 troop_id = &"ember_ranger"
 display_name = "Ember Ranger"
 archetype = &"ember"
-max_hp = 260
+max_hp = 280
 attack = 107
 special_attack = 54
-defense = 51
+defense = 58
 special_defense = 48
 speed = 70
 crit_chance = 0.3

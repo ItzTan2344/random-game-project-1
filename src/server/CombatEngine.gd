@@ -322,13 +322,15 @@ func _begin_round() -> void:
 	_emit(CombatTypes.EventType.ACTION_REQUESTED, -1, -1, float(state.cycle), {"pending": pending})
 
 
-## Higher Speed first; ties go to the lower uid.
+## Higher Speed first; ties alternate between lower and higher uid each cycle so neither side owns the tie-break.
 func _faster(a: TroopInstance, b: TroopInstance) -> bool:
 	var sa: float = a.get_stat(CombatTypes.Stat.SPEED)
 	var sb: float = b.get_stat(CombatTypes.Stat.SPEED)
 	if absf(sa - sb) > CombatTypes.EPSILON:
 		return sa > sb
-	return a.uid < b.uid
+	if state.cycle % 2 == 0:
+		return a.uid < b.uid
+	return a.uid > b.uid
 
 
 ## Runs every chosen action in Speed order (ACT_FIRST overdrives jump the queue), then ends the round.

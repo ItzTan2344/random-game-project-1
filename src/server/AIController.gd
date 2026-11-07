@@ -21,7 +21,7 @@ func choose_draft(squad: Array[TroopData]) -> Array[int]:
 	var order: Array[int] = []
 	for i in squad.size():
 		var d: TroopData = squad[i]
-		scores.append(d.max_hp * 0.1 + maxf(d.attack, d.special_attack) + (d.defense + d.special_defense) * 0.25 + d.speed * 2.0 + rng.randf() * 60.0)
+		scores.append(d.max_hp * 0.1 + maxf(d.attack, d.special_attack) + (d.defense + d.special_defense) * 0.25 + d.speed * 1.2 + rng.randf() * 60.0)
 		order.append(i)
 	order.sort_custom(func(a: int, b: int) -> bool: return scores[a] > scores[b])
 	var picks: Array[int] = []

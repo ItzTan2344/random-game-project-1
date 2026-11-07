@@ -1,0 +1,223 @@
+{
+  "avg_rounds": 9.03,
+  "frenzy_matches": 0,
+  "gemini_wins": 311,
+  "gemini_wr": 77.75,
+  "matches": 400,
+  "max_rounds": 15,
+  "min_rounds": 6,
+  "opponent_name": "RandomSquad",
+  "opponent_wins": 89,
+  "round_distribution": {
+    "6": 5,
+    "7": 46,
+    "8": 116,
+    "9": 102,
+    "10": 69,
+    "11": 35,
+    "12": 17,
+    "13": 7,
+    "14": 1,
+    "15": 2
+  },
+  "side_a_wins": 211,
+  "side_b_wins": 189,
+  "team_stats": {
+    "gemini": {
+      "ember_ranger": {
+        "brought": 400,
+        "damage": 59719,
+        "deaths": 224,
+        "kos": 154,
+        "picked": 234,
+        "won": 175
+      },
+      "storm_courier": {
+        "brought": 400,
+        "damage": 110668,
+        "deaths": 212,
+        "kos": 208,
+        "picked": 299,
+        "won": 226
+      },
+      "storm_lancer": {
+        "brought": 400,
+        "damage": 79519,
+        "deaths": 208,
+        "kos": 141,
+        "picked": 254,
+        "won": 195
+      },
+      "tide_caller": {
+        "brought": 400,
+        "damage": 66359,
+        "deaths": 90,
+        "kos": 194,
+        "picked": 230,
+        "won": 179
+      },
+      "tide_warden": {
+        "brought": 400,
+        "damage": 97910,
+        "deaths": 71,
+        "kos": 374,
+        "picked": 281,
+        "won": 225
+      },
+      "void_fox": {
+        "brought": 400,
+        "damage": 115279,
+        "deaths": 191,
+        "kos": 413,
+        "picked": 302,
+        "won": 244
+      }
+    },
+    "opponent": {
+      "ember_aggro": {
+        "brought": 136,
+        "damage": 4762,
+        "deaths": 94,
+        "kos": 11,
+        "picked": 94,
+        "won": 19
+      },
+      "ember_ranger": {
+        "brought": 154,
+        "damage": 14416,
+        "deaths": 131,
+        "kos": 28,
+        "picked": 131,
+        "won": 24
+      },
+      "ember_reaver": {
+        "brought": 128,
+        "damage": 9882,
+        "deaths": 31,
+        "kos": 29,
+        "picked": 34,
+        "won": 6
+      },
+      "forge_bastion": {
+        "brought": 139,
+        "damage": 4506,
+        "deaths": 12,
+        "kos": 12,
+        "picked": 14,
+        "won": 2
+      },
+      "forge_colossus": {
+        "brought": 126,
+        "damage": 13987,
+        "deaths": 25,
+        "kos": 41,
+        "picked": 36,
+        "won": 11
+      },
+      "forge_sentinel": {
+        "brought": 139,
+        "damage": 33741,
+        "deaths": 100,
+        "kos": 100,
+        "picked": 115,
+        "won": 28
+      },
+      "grove_berserker": {
+        "brought": 139,
+        "damage": 7842,
+        "deaths": 22,
+        "kos": 21,
+        "picked": 27,
+        "won": 5
+      },
+      "grove_keeper": {
+        "brought": 127,
+        "damage": 7026,
+        "deaths": 41,
+        "kos": 29,
+        "picked": 47,
+        "won": 6
+      },
+      "grove_witch": {
+        "brought": 142,
+        "damage": 21966,
+        "deaths": 76,
+        "kos": 74,
+        "picked": 86,
+        "won": 16
+      },
+      "storm_courier": {
+        "brought": 134,
+        "damage": 38656,
+        "deaths": 117,
+        "kos": 61,
+        "picked": 125,
+        "won": 31
+      },
+      "storm_herald": {
+        "brought": 112,
+        "damage": 17580,
+        "deaths": 82,
+        "kos": 48,
+        "picked": 86,
+        "won": 10
+      },
+      "storm_lancer": {
+        "brought": 145,
+        "damage": 28338,
+        "deaths": 122,
+        "kos": 54,
+        "picked": 124,
+        "won": 25
+      },
+      "tide_caller": {
+        "brought": 134,
+        "damage": 26912,
+        "deaths": 86,
+        "kos": 69,
+        "picked": 98,
+        "won": 28
+      },
+      "tide_oracle": {
+        "brought": 137,
+        "damage": 38057,
+        "deaths": 116,
+        "kos": 87,
+        "picked": 120,
+        "won": 26
+      },
+      "tide_warden": {
+        "brought": 123,
+        "damage": 45101,
+        "deaths": 95,
+        "kos": 151,
+        "picked": 114,
+        "won": 36
+      },
+      "void_arcanist": {
+        "brought": 126,
+        "damage": 19751,
+        "deaths": 105,
+        "kos": 34,
+        "picked": 110,
+        "won": 19
+      },
+      "void_fox": {
+        "brought": 141,
+        "damage": 31788,
+        "deaths": 123,
+        "kos": 65,
+        "picked": 128,
+        "won": 36
+      },
+      "void_weaver": {
+        "brought": 118,
+        "damage": 32724,
+        "deaths": 106,
+        "kos": 82,
+        "picked": 111,
+        "won": 28
+      }
+    }
+  }
+}

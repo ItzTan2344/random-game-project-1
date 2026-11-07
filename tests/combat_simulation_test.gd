@@ -384,7 +384,7 @@ func _test_roster_and_passives() -> void:
 	var c: TroopInstance = team.active[0]
 	_check(c.data == courier, "courier switched in")
 	_check(_has_event(events, CombatTypes.EventType.PASSIVE_TRIGGERED), "entry passive triggered")
-	_check(team.energy >= CombatTypes.SWITCH_ENERGY + 2, "switch energy + passive energy")
+	_check(team.energy >= CombatTypes.SWITCH_ENERGY + 1, "switch energy + passive energy")
 	_check(_near(c.stat_modifier(CombatTypes.Stat.SPEED), 0.2), "courier gains +20% SPE")
 	_check(c.passive_icd >= 1, "passive internal cooldown set")
 	_sections_done += 1
