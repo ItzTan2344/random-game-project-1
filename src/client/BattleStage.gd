@@ -6,6 +6,8 @@ extends SubViewportContainer
 const AVATAR_PATH := "res://src/client/avatars/%s.gd"
 const SLOT_X: Array[float] = [-1.5, 1.5]
 const SIDE_Z := 1.3
+const CAM_POS := Vector3(0, 9.8, 13.3)
+const CAM_LOOK := Vector3(0, 0.5, 0.1)
 
 var viewer_side: int = CombatTypes.Side.A
 
@@ -17,6 +19,7 @@ var _cam: Camera3D
 var _rings: Array[Node3D] = []
 var _ring_mats: Array[StandardMaterial3D] = []
 var _t: float = 0.0
+var _arena: ArenaEnvironment
 
 
 func _init(p_viewer_side: int) -> void:
@@ -26,29 +29,14 @@ func _init(p_viewer_side: int) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var viewport: SubViewport = SubViewport.new()
 	viewport.own_world_3d = true
-	viewport.transparent_bg = true
 	viewport.msaa_3d = Viewport.MSAA_2X
 	add_child(viewport)
 	_world = Node3D.new()
 	viewport.add_child(_world)
 
-	var env: WorldEnvironment = WorldEnvironment.new()
-	env.environment = Environment.new()
-	env.environment.background_mode = Environment.BG_CLEAR_COLOR
-	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.environment.ambient_light_color = Color(0.62, 0.64, 0.72)
-	_world.add_child(env)
-	var sun: DirectionalLight3D = DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55, 30, 0)
-	sun.shadow_enabled = true
-	_world.add_child(sun)
-
-	# Arena floor: a slab with a center line and one colored pad per side.
-	var floor_box: MeshInstance3D = _slab(Vector3(7.5, 0.2, 5.2), Vector3(0, -0.1, 0), Color("#2a3142"))
-	_world.add_child(floor_box)
-	_world.add_child(_slab(Vector3(7.5, 0.02, 0.06), Vector3(0, 0.005, 0), Color("#4a5470")))
-	for side in 2:
-		_world.add_child(_slab(Vector3(4.6, 0.02, 1.6), Vector3(0, 0.005, _side_z(side)), BattleUI.SIDE_COLORS[side].darkened(0.55)))
+	var near: int = viewer_side
+	_arena = ArenaEnvironment.new(BattleUI.SIDE_COLORS[near], BattleUI.SIDE_COLORS[1 - near])
+	_world.add_child(_arena)
 
 	# One square ring per slot: gold under the acting troop, red under valid targets.
 	for i in 4:
@@ -74,7 +62,7 @@ func _init(p_viewer_side: int) -> void:
 	# High and far with a narrow FOV: near troops don't hide the far ones, fallen ones stay in frame.
 	_cam.fov = 26.0
 	_world.add_child(_cam)
-	_cam.look_at_from_position(Vector3(0, 9.8, 13.3), Vector3(0, 0.5, 0.1))
+	_cam.look_at_from_position(CAM_POS, CAM_LOOK)
 
 
 func _process(delta: float) -> void:
@@ -82,6 +70,9 @@ func _process(delta: float) -> void:
 	var s: float = 1.0 + 0.06 * sin(_t * 5.0)
 	for ring in _rings:
 		ring.scale = Vector3(s, 1.0, s)
+	# Slow handheld drift so the scene never feels frozen.
+	var drift: Vector3 = Vector3(sin(_t * 0.23) * 0.35, sin(_t * 0.31) * 0.12, 0.0)
+	_cam.look_at_from_position(CAM_POS + drift, CAM_LOOK)
 
 
 ## Shows a ring under uid's slot (Color(0,0,0,0) hides it).
@@ -176,11 +167,52 @@ static func script_for(troop_id: String) -> GDScript:
 	return _scripts[troop_id]
 
 
-func _slab(box_size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
-	var m: MeshInstance3D = MeshInstance3D.new()
-	var mesh: BoxMesh = BoxMesh.new()
-	mesh.size = box_size
-	m.mesh = mesh
-	m.material_override = VoxelTroop.material(color)
-	m.position = pos
-	return m
+# =====================================================================
+# Combat VFX (HitFX), anchored on a troop's chest; no-ops if uid isn't on the field.
+# =====================================================================
+
+func fx_impact(uid: int, color: Color, crit: bool) -> void:
+	var p: Vector3 = _chest(uid)
+	if p != Vector3.INF:
+		HitFX.impact(_world, p, color, crit)
+
+
+func fx_heal(uid: int) -> void:
+	var p: Vector3 = _chest(uid)
+	if p != Vector3.INF:
+		HitFX.heal(_world, p)
+
+
+func fx_buff(uid: int, color: Color) -> void:
+	var p: Vector3 = _chest(uid)
+	if p != Vector3.INF:
+		HitFX.buff(_world, p, color)
+
+
+func fx_cast(uid: int, color: Color) -> void:
+	var p: Vector3 = _chest(uid)
+	if p != Vector3.INF:
+		HitFX.cast(_world, p, color)
+
+
+func fx_ko(uid: int) -> void:
+	var p: Vector3 = _chest(uid)
+	if p != Vector3.INF:
+		HitFX.ko(_world, p)
+
+
+func fx_projectile(from_uid: int, to_uid: int, color: Color, duration: float) -> void:
+	var a: Vector3 = _chest(from_uid)
+	var b: Vector3 = _chest(to_uid)
+	if a != Vector3.INF and b != Vector3.INF:
+		HitFX.projectile(_world, a, b, color, duration)
+
+
+## Crowd in the stands jumps up for a moment.
+func cheer() -> void:
+	_arena.cheer()
+
+
+func _chest(uid: int) -> Vector3:
+	var model: VoxelTroop = model_for(uid)
+	return model.global_position + Vector3(0, 1.0, 0) if model != null else Vector3.INF

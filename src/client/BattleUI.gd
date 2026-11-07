@@ -104,6 +104,7 @@ func _ready() -> void:
 	_stage = BattleStage.new(viewer_side)
 	_stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_stage)
+	add_child(_vignette())
 
 	var margin: MarginContainer = MarginContainer.new()
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -255,7 +256,7 @@ func _add_side_row(parent: Control, side: int) -> void:
 
 ## Squad select: the whole roster, built from data at show time, so new troops appear without code changes.
 func _build_squad_panel() -> void:
-	_squad_panel = _overlay(Color(UITheme.BG, 0.97), true)
+	_squad_panel = _overlay(Color(UITheme.BG, 0.62), true)
 	var v: VBoxContainer = _vbox(_squad_panel, 14)
 	var head: HBoxContainer = _hbox(v, 18)
 	_label(head, &"Title").text = "BUILD YOUR SQUAD"
@@ -336,7 +337,7 @@ func _refresh_squad() -> void:
 
 
 func _build_draft_panel() -> void:
-	_draft_panel = _overlay(Color(UITheme.BG, 0.97), true)
+	_draft_panel = _overlay(Color(UITheme.BG, 0.62), true)
 	_picked_style = UITheme.box(Color("#3b3522"), UITheme.GOLD, 3, 6, 8)
 	var v: VBoxContainer = _vbox(_draft_panel, 14)
 	var head: HBoxContainer = _hbox(v, 18)
@@ -445,6 +446,7 @@ func _overlay(color: Color, full: bool) -> PanelContainer:
 	add_child(p)
 	if full:
 		p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		p.material = _frosted(color)
 	else:
 		p.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 		p.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -555,6 +557,10 @@ func play_event(e: Dictionary) -> void:
 				c2.flash(Color(1.6, 1.5, 0.8))
 			var hostile: bool = target != -1 and _sides.get(target, -1) != _sides.get(actor, -1)
 			_stage.play(actor, &"attack" if hostile else &"cast")
+			if hostile:
+				_stage.fx_projectile(actor, target, Color("#ffd27a"), 0.22 / maxf(playback_speed, 0.01))
+			else:
+				_stage.fx_cast(actor, Color("#ffd24a") if bool(d["overdrive"]) else Color("#8fd0ff"))
 			delay = 0.25
 		CombatTypes.EventType.OVERDRIVE_ACTIVATED:
 			_float(actor, "OVERDRIVE", Color("#ffd24a"))
@@ -564,6 +570,9 @@ func play_event(e: Dictionary) -> void:
 				c3.update_hp(int(d["hp_after"]), int(d["shield_after"]))
 				c3.flash(Color(1.8, 0.6, 0.6))
 			_stage.play(target, &"hit")
+			_stage.fx_impact(target, Color("#ff8a3d") if String(d["tag"]) == "dot" else Color("#ff5a5a"), bool(d["crit"]))
+			if bool(d["crit"]):
+				_stage.cheer()
 			if actor >= 0:
 				_damage[actor] = int(_damage.get(actor, 0)) + int(value)
 			var crit: bool = bool(d["crit"])
@@ -580,11 +589,13 @@ func play_event(e: Dictionary) -> void:
 				c4.update_hp(int(d["hp_after"]))
 			_float(target, "+%d" % int(value), Color("#6be38a"))
 			_stage.play(target, &"buff")
+			_stage.fx_heal(target)
 			_log_line("  %s heals %s for [color=#80ff9a]%d[/color]" % [_cn(actor), _cn(target), int(value)])
 			delay = 0.2
 		CombatTypes.EventType.EFFECT_APPLIED:
 			var fx: String = TroopCard.effect_text(d)
 			_float(target, fx, Color("#ff9f80") if bool(d["debuff"]) else Color("#9fd4ff"))
+			_stage.fx_buff(target, Color("#ff6a3d") if bool(d["debuff"]) else Color("#5fb8ff"))
 			_log_line("  %s: %s (%d turns)" % [_cn(target), fx, int(d["duration"])])
 			delay = 0.15
 		CombatTypes.EventType.EFFECT_RESISTED:
@@ -617,6 +628,8 @@ func play_event(e: Dictionary) -> void:
 			if c6 != null:
 				c6.modulate = Color(1, 1, 1, 0.35)
 			_stage.play(actor, &"death")
+			_stage.fx_ko(actor)
+			_stage.cheer()
 			_log_line("[color=#ff5050]%s is knocked out![/color]" % _cn(actor))
 			delay = 0.45
 		CombatTypes.EventType.STANDBY_REQUESTED:
@@ -1483,3 +1496,39 @@ func _archetype_chip(s: Dictionary, h_flags: int) -> PanelContainer:
 	var c: PanelContainer = UITheme.chip(arch.display_name, arch.color, 11)
 	c.size_flags_horizontal = h_flags
 	return c
+
+
+## Soft dark edges over the arena so the eye lands on the troops.
+func _vignette() -> ColorRect:
+	var r: ColorRect = ColorRect.new()
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var sh: Shader = Shader.new()
+	sh.code = "shader_type canvas_item;
+void fragment() {
+	vec2 d = (UV - 0.5) * vec2(1.0, 1.3);
+	COLOR = vec4(0.03, 0.02, 0.07, smoothstep(0.3, 0.85, length(d)) * 0.75);
+}
+"
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = sh
+	r.material = mat
+	return r
+
+
+## Frosted glass: the panel's own rect shows the arena behind it, blurred and tinted (children draw normally).
+func _frosted(tint: Color) -> ShaderMaterial:
+	var sh: Shader = Shader.new()
+	sh.code = "shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
+uniform vec4 tint : source_color;
+void fragment() {
+	vec3 c = textureLod(screen_tex, SCREEN_UV, 3.5).rgb;
+	float edge = smoothstep(0.25, 0.95, length((SCREEN_UV - 0.5) * vec2(1.0, 1.3)));
+	COLOR = vec4(mix(c, tint.rgb, clamp(tint.a + edge * 0.2, 0.0, 1.0)), 1.0);
+}
+"
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = sh
+	mat.set_shader_parameter("tint", tint)
+	return mat

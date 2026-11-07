@@ -1,11 +1,14 @@
 extends SceneTree
 ## Windowed UI capture: plays the draft and the first human turn, saving PNGs to res://renders/.
-## Run (not headless): <godot console exe> --path D:\Game\random_project -s res://tools/ui_screenshots.gd
+## Run (not headless): <godot console exe> --position -10000,-10000 --path D:\Game\random_project -s res://tools/ui_screenshots.gd
 
 const OUT := "res://renders/"
 
 
 func _initialize() -> void:
+	# Stay out of the user's way: off-screen and never takes keyboard focus. Launch with --position -10000,-10000 too.
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
+	DisplayServer.window_set_position(Vector2i(-10000, -10000))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	var client: BattleClient = load("res://src/client/main.tscn").instantiate()
 	client.match_seed = 7
@@ -16,6 +19,14 @@ func _initialize() -> void:
 func _run(client: BattleClient) -> void:
 	await process_frame
 	var ui: BattleUI = client.ui
+	await _until(func() -> bool: return ui._squad_panel.visible)
+	await _frames(20)
+	var ids: Array = ui._squad_buttons.keys()
+	for i in CombatTypes.DRAFT_BRING - ui._squad_picks.size():
+		ui._on_squad_toggle(ids[ids.size() - 1 - i])
+	await _frames(5)
+	_shot("0_squad")
+	ui._on_squad_find()
 	await _until(func() -> bool: return not ui.snapshot.is_empty())
 	await _frames(20)
 	_shot("1_draft")
@@ -73,6 +84,13 @@ func _run(client: BattleClient) -> void:
 			await _frames(5)
 			_shot("5_midbattle")
 			ui._toggle_log()
+			var st: BattleStage = ui._stage
+			st.fx_impact(st._slot_uids[2], Color("#ff5a5a"), true)
+			st.fx_cast(st._slot_uids[0], Color("#8fd0ff"))
+			st.fx_heal(st._slot_uids[1])
+			st.fx_buff(st._slot_uids[3], Color("#ff6a3d"))
+			await _frames(9)
+			_shot("5c_fx")
 		var leg: Dictionary = ui.snapshot.get("legal", {})
 		for uid in leg:
 			var uid_int: int = int(uid)
