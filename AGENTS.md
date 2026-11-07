@@ -33,5 +33,6 @@ Main scene: `res://src/client/main.tscn`. Windows 11, PowerShell.
 
 ## Rules
 - Typed GDScript, one statement per line, no warnings.
+- For Godot work, use the `godot-*` skills in `.claude/skills/` (gdscript, resources, ui-control, headless-testing, 3d-essentials, animation). These rules win on conflict.
 - Stay inside the files your task names. Don't commit or push unless asked.
 - Don't spawn subagents or new threads unless your task says to.

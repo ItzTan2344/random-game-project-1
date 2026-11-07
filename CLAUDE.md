@@ -1,5 +1,7 @@
 @AGENTS.md
 
+For Godot work, use the `godot-*` skills in `.claude/skills/`. Project rules above win on conflict.
+
 ## Subagent notes (probed 2026-11-06)
 
 Delegate via T3 `delegate_task`. Both delegates read files, ran PowerShell/git, and launched Godot successfully.
