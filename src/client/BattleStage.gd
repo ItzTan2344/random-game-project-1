@@ -19,6 +19,7 @@ var _cam: Camera3D
 var _rings: Array[Node3D] = []
 var _ring_mats: Array[StandardMaterial3D] = []
 var _t: float = 0.0
+var cam_offset: Vector3 = Vector3.ZERO
 var _arena: ArenaEnvironment
 
 
@@ -71,8 +72,9 @@ func _process(delta: float) -> void:
 	for ring in _rings:
 		ring.scale = Vector3(s, 1.0, s)
 	# Slow handheld drift so the scene never feels frozen.
+	# The camera pose is composed here only: drift + cam_offset (add shake/zoom to cam_offset).
 	var drift: Vector3 = Vector3(sin(_t * 0.23) * 0.35, sin(_t * 0.31) * 0.12, 0.0)
-	_cam.look_at_from_position(CAM_POS + drift, CAM_LOOK)
+	_cam.look_at_from_position(CAM_POS + drift + cam_offset, CAM_LOOK)
 
 
 ## Shows a ring under uid's slot (Color(0,0,0,0) hides it).

@@ -33,6 +33,7 @@ var _crowd_yaw: Array[float] = []
 var _crowd_base: Array[Vector3] = []
 var _crowd_phase: Array[float] = []
 var _cheer: float = 0.0
+var _crowd_acc: float = 0.0
 
 
 func _init(near_color: Color, far_color: Color) -> void:
@@ -62,6 +63,11 @@ func _process(delta: float) -> void:
 	_cheer = maxf(_cheer - delta, 0.0)
 	var amp: float = 0.04 + 0.22 * minf(_cheer, 1.0)
 	var speed: float = 3.0 + 9.0 * minf(_cheer, 1.0)
+	# Idle bob is tiny: refresh the crowd at ~20 Hz unless cheering.
+	_crowd_acc += delta
+	if _cheer <= 0.0 and _crowd_acc < 0.05:
+		return
+	_crowd_acc = 0.0
 	for i in _crowd_base.size():
 		var hop: float = absf(sin(_t * speed + _crowd_phase[i])) * amp
 		var b: Vector3 = _crowd_base[i] + Vector3(0, hop, 0)
@@ -280,11 +286,11 @@ func _build_stands() -> void:
 
 
 func _set_head(i: int, body_pos: Vector3, yaw: float) -> void:
-	var basis: Basis = Basis(Vector3.UP, yaw)
+	var rot: Basis = Basis(Vector3.UP, yaw)
 	var head: Vector3 = body_pos + Vector3(0, 0.36, 0)
-	_crowd_heads.set_instance_transform(i, Transform3D(basis, head))
-	_crowd_eyes.set_instance_transform(i * 2, Transform3D(basis, head + basis * Vector3(0.07, 0.02, 0.145)))
-	_crowd_eyes.set_instance_transform(i * 2 + 1, Transform3D(basis, head + basis * Vector3(-0.07, 0.02, 0.145)))
+	_crowd_heads.set_instance_transform(i, Transform3D(rot, head))
+	_crowd_eyes.set_instance_transform(i * 2, Transform3D(rot, head + rot * Vector3(0.07, 0.02, 0.145)))
+	_crowd_eyes.set_instance_transform(i * 2 + 1, Transform3D(rot, head + rot * Vector3(-0.07, 0.02, 0.145)))
 
 
 ## One-draw-call batch of coloured boxes; caller fills transforms and colours.
@@ -381,8 +387,8 @@ func _build_grass() -> void:
 		var col: Color = greens[rng.randi() % greens.size()]
 		for k in 3:
 			var h: float = rng.randf_range(0.6, 1.2)
-			var basis: Basis = Basis.from_euler(Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(0, TAU), rng.randf_range(-0.3, 0.3))).scaled(Vector3(1, h, 1))
-			blades.append(Transform3D(basis, c + Vector3(rng.randf_range(-0.12, 0.12), 0.12 * h, rng.randf_range(-0.12, 0.12))))
+			var rot: Basis = Basis.from_euler(Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(0, TAU), rng.randf_range(-0.3, 0.3))).scaled(Vector3(1, h, 1))
+			blades.append(Transform3D(rot, c + Vector3(rng.randf_range(-0.12, 0.12), 0.12 * h, rng.randf_range(-0.12, 0.12))))
 			cols.append(col.lightened(rng.randf_range(0.0, 0.15)))
 	var mm: MultiMesh = _color_multimesh(Vector3(0.04, 0.28, 0.04), blades.size())
 	for i in blades.size():
@@ -441,26 +447,11 @@ func _frame(center: Vector3, size: Vector2, thick: float, color: Color, energy: 
 ## Static box. energy > 0 makes it emissive (blooms with glow).
 func _box(box_size: Vector3, pos: Vector3, color: Color, energy: float = 0.0, rot_deg: Vector3 = Vector3.ZERO, parent: Node3D = self) -> MeshInstance3D:
 	var m: MeshInstance3D = MeshInstance3D.new()
-	var mesh: BoxMesh = BoxMesh.new()
-	mesh.size = box_size
-	m.mesh = mesh
-	m.material_override = _glow_material(color, energy) if energy > 0.0 else VoxelTroop.material(color)
+	m.mesh = HitFX.get_box_mesh(box_size)
+	m.material_override = HitFX.get_emissive_material(color, energy, true) if energy > 0.0 else VoxelTroop.material(color)
 	m.position = pos
 	m.rotation_degrees = rot_deg
 	parent.add_child(m)
 	return m
 
 
-static var _glow_mats: Dictionary = {}
-
-
-static func _glow_material(color: Color, energy: float) -> StandardMaterial3D:
-	var key: String = "%s/%f" % [color.to_html(), energy]
-	if not _glow_mats.has(key):
-		var mat: StandardMaterial3D = StandardMaterial3D.new()
-		mat.albedo_color = color
-		mat.emission_enabled = true
-		mat.emission = color
-		mat.emission_energy_multiplier = energy
-		_glow_mats[key] = mat
-	return _glow_mats[key]

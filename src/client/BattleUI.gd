@@ -13,7 +13,11 @@ const SIDE_COLORS: Array[Color] = [Color("#5fa8ff"), Color("#ff7a6b")]
 const OVERDRIVE_NAMES: Array[String] = ["", "Guarantee Effects", "Reduce Cooldown", "Act First", "Bonus Damage"]
 const TARGET_NAMES: Array[String] = ["Single enemy", "All enemies", "Single ally", "Self", "Both allies"]
 
-@export var playback_speed: float = 0.65 # <1 = slower; event delays are divided by this
+@export var playback_speed: float = 0.65: # (also scales HitFX)
+	set(v):
+		playback_speed = v
+		HitFX.speed = v
+# <1 = slower; event delays are divided by this
 
 var viewer_side: int = CombatTypes.Side.A
 var snapshot: Dictionary = {}
@@ -1525,7 +1529,7 @@ uniform vec4 tint : source_color;
 void fragment() {
 	vec3 c = textureLod(screen_tex, SCREEN_UV, 3.5).rgb;
 	float edge = smoothstep(0.25, 0.95, length((SCREEN_UV - 0.5) * vec2(1.0, 1.3)));
-	COLOR = vec4(mix(c, tint.rgb, clamp(tint.a + edge * 0.2, 0.0, 1.0)), 1.0);
+	COLOR = vec4(mix(c, tint.rgb, clamp(tint.a + edge * 0.2, 0.0, 1.0)), COLOR.a);
 }
 "
 	var mat: ShaderMaterial = ShaderMaterial.new()

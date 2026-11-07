@@ -5,6 +5,12 @@ extends RefCounted
 
 static var _materials: Dictionary = {}
 static var _meshes: Dictionary = {}
+## Playback speed multiplier for all effect tweens (set by BattleUI from playback_speed).
+static var speed: float = 0.65
+
+
+static func _tween(node: Node) -> Tween:
+	return node.create_tween().set_speed_scale(maxf(speed, 0.01))
 
 
 # =====================================================================
@@ -33,7 +39,7 @@ static func impact(parent: Node3D, pos: Vector3, color: Color, crit: bool) -> vo
 	flash.scale = Vector3.ONE * 0.2
 	flash.rotation_degrees = Vector3(randf_range(0.0, 360.0), randf_range(0.0, 360.0), randf_range(0.0, 360.0))
 
-	var tw_flash: Tween = root.create_tween().set_parallel(true)
+	var tw_flash: Tween = _tween(root).set_parallel(true)
 	tw_flash.tween_property(flash, "scale", Vector3.ONE * (1.8 if crit else 1.3), 0.15).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	tw_flash.tween_property(flash, "transparency", 1.0, 0.15).set_ease(Tween.EASE_IN)
 	tw_flash.tween_property(flash, "rotation_degrees:y", flash.rotation_degrees.y + 90.0, 0.15)
@@ -44,7 +50,7 @@ static func impact(parent: Node3D, pos: Vector3, color: Color, crit: bool) -> vo
 		var shockwave: Node3D = _spawn_square_frame(root, 0.9, 0.08, 0.02, gold_mat)
 		shockwave.position = Vector3(0.0, -pos.y + 0.02, 0.0)
 		shockwave.scale = Vector3.ONE * 0.25
-		var tw_shock: Tween = root.create_tween().set_parallel(true)
+		var tw_shock: Tween = _tween(root).set_parallel(true)
 		tw_shock.tween_property(shockwave, "scale", Vector3.ONE * 2.3, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_shock.tween_property(shockwave, "rotation_degrees:y", 45.0, 0.45).set_ease(Tween.EASE_OUT)
 		for child: Node in shockwave.get_children():
@@ -77,21 +83,21 @@ static func impact(parent: Node3D, pos: Vector3, color: Color, crit: bool) -> vo
 		var up_dur: float = duration * 0.38
 		var down_dur: float = duration - up_dur
 
-		var tw_y: Tween = cube.create_tween()
+		var tw_y: Tween = _tween(cube)
 		tw_y.tween_property(cube, "position:y", peak_y, up_dur).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_y.tween_property(cube, "position:y", fall_y, down_dur).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 
-		var tw_h: Tween = cube.create_tween().set_parallel(true)
+		var tw_h: Tween = _tween(cube).set_parallel(true)
 		tw_h.tween_property(cube, "position:x", target_x, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_h.tween_property(cube, "position:z", target_z, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_h.tween_property(cube, "rotation_degrees", Vector3(randf_range(-360.0, 360.0), randf_range(-360.0, 360.0), randf_range(-360.0, 360.0)), duration)
 
 		# Scale pop and shrink
-		var tw_s: Tween = cube.create_tween()
+		var tw_s: Tween = _tween(cube)
 		tw_s.tween_property(cube, "scale", Vector3.ONE * 1.25, 0.06).set_ease(Tween.EASE_OUT)
 		tw_s.tween_property(cube, "scale", Vector3.ZERO, duration - 0.06).set_ease(Tween.EASE_IN)
 
-	var cleaner: Tween = root.create_tween()
+	var cleaner: Tween = _tween(root)
 	cleaner.tween_interval(duration + 0.05)
 	cleaner.finished.connect(root.queue_free)
 
@@ -116,7 +122,7 @@ static func heal(parent: Node3D, pos: Vector3) -> void:
 	ring.position = Vector3(0.0, -pos.y + 0.02, 0.0)
 	ring.scale = Vector3.ONE * 0.35
 
-	var tw_ring: Tween = root.create_tween().set_parallel(true)
+	var tw_ring: Tween = _tween(root).set_parallel(true)
 	tw_ring.tween_property(ring, "scale", Vector3.ONE * 1.35, 0.6).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	tw_ring.tween_property(ring, "rotation_degrees:y", 45.0, 0.6).set_ease(Tween.EASE_OUT)
 	for child: Node in ring.get_children():
@@ -136,17 +142,17 @@ static func heal(parent: Node3D, pos: Vector3) -> void:
 		var drift_z: float = start_offset.z + randf_range(-0.25, 0.25)
 		var cube_dur: float = randf_range(0.5, duration)
 
-		var tw_pos: Tween = cube.create_tween().set_parallel(true)
+		var tw_pos: Tween = _tween(cube).set_parallel(true)
 		tw_pos.tween_property(cube, "position:y", rise_y, cube_dur).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_pos.tween_property(cube, "position:x", drift_x, cube_dur).set_ease(Tween.EASE_OUT)
 		tw_pos.tween_property(cube, "position:z", drift_z, cube_dur).set_ease(Tween.EASE_OUT)
 		tw_pos.tween_property(cube, "rotation_degrees", Vector3(randf_range(-180.0, 180.0), randf_range(-180.0, 180.0), randf_range(-180.0, 180.0)), cube_dur)
 
-		var tw_scale: Tween = cube.create_tween()
+		var tw_scale: Tween = _tween(cube)
 		tw_scale.tween_property(cube, "scale", Vector3.ONE * 1.15, 0.12).set_ease(Tween.EASE_OUT)
 		tw_scale.tween_property(cube, "scale", Vector3.ZERO, cube_dur - 0.12).set_ease(Tween.EASE_IN)
 
-	var cleaner: Tween = root.create_tween()
+	var cleaner: Tween = _tween(root)
 	cleaner.tween_interval(duration + 0.05)
 	cleaner.finished.connect(root.queue_free)
 
@@ -179,18 +185,18 @@ static func buff(parent: Node3D, pos: Vector3, color: Color) -> void:
 		var cube: MeshInstance3D = _spawn_cube(pivot, cube_size, Vector3(0.55, start_y, 0.0), mat)
 		cube.scale = Vector3.ZERO
 
-		var tw_rot: Tween = pivot.create_tween()
+		var tw_rot: Tween = _tween(pivot)
 		tw_rot.tween_property(pivot, "rotation:y", start_angle + TAU * 0.85, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
-		var tw_cube: Tween = cube.create_tween().set_parallel(true)
+		var tw_cube: Tween = _tween(cube).set_parallel(true)
 		tw_cube.tween_property(cube, "position:y", start_y + 1.5, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_cube.tween_property(cube, "rotation_degrees", Vector3(randf_range(-240.0, 240.0), randf_range(-240.0, 240.0), randf_range(-240.0, 240.0)), duration)
 
-		var tw_s: Tween = cube.create_tween()
+		var tw_s: Tween = _tween(cube)
 		tw_s.tween_property(cube, "scale", Vector3.ONE * 1.2, 0.12).set_ease(Tween.EASE_OUT)
 		tw_s.tween_property(cube, "scale", Vector3.ZERO, duration - 0.12).set_ease(Tween.EASE_IN)
 
-	var cleaner: Tween = root.create_tween()
+	var cleaner: Tween = _tween(root)
 	cleaner.tween_interval(duration + 0.05)
 	cleaner.finished.connect(root.queue_free)
 
@@ -218,13 +224,13 @@ static func cast(parent: Node3D, pos: Vector3, color: Color) -> void:
 	frame2.rotation.y = PI * 0.25
 	frame2.scale = Vector3.ONE * 0.15
 
-	var tw_f1: Tween = frame1.create_tween().set_parallel(true)
+	var tw_f1: Tween = _tween(frame1).set_parallel(true)
 	tw_f1.tween_property(frame1, "scale", Vector3.ONE * 1.4, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw_f1.tween_property(frame1, "rotation:y", PI * 0.5, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	for child: Node in frame1.get_children():
 		tw_f1.tween_property(child, "transparency", 1.0, 0.25).set_delay(0.25).set_ease(Tween.EASE_IN)
 
-	var tw_f2: Tween = frame2.create_tween().set_parallel(true)
+	var tw_f2: Tween = _tween(frame2).set_parallel(true)
 	tw_f2.tween_property(frame2, "scale", Vector3.ONE * 1.4, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw_f2.tween_property(frame2, "rotation:y", PI * 0.25 - PI * 0.5, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	for child: Node in frame2.get_children():
@@ -235,15 +241,15 @@ static func cast(parent: Node3D, pos: Vector3, color: Color) -> void:
 		var spark: MeshInstance3D = _spawn_cube(root, Vector3.ONE * 0.14, Vector3(0.0, ground_y + 0.01, 0.0), mat_bright)
 		spark.scale = Vector3.ZERO
 		var spark_ang: float = float(i) * (TAU * 0.25)
-		var spark_tw: Tween = spark.create_tween().set_parallel(true)
+		var spark_tw: Tween = _tween(spark).set_parallel(true)
 		spark_tw.tween_property(spark, "position:x", cos(spark_ang) * 0.9, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		spark_tw.tween_property(spark, "position:z", sin(spark_ang) * 0.9, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		spark_tw.tween_property(spark, "rotation_degrees:y", 180.0, duration)
-		var spark_scale_tw: Tween = spark.create_tween()
+		var spark_scale_tw: Tween = _tween(spark)
 		spark_scale_tw.tween_property(spark, "scale", Vector3.ONE * 1.2, 0.12).set_ease(Tween.EASE_OUT)
 		spark_scale_tw.tween_property(spark, "scale", Vector3.ZERO, duration - 0.12).set_ease(Tween.EASE_IN)
 
-	var cleaner: Tween = root.create_tween()
+	var cleaner: Tween = _tween(root)
 	cleaner.tween_interval(duration + 0.05)
 	cleaner.finished.connect(root.queue_free)
 
@@ -263,7 +269,7 @@ static func ko(parent: Node3D, pos: Vector3) -> void:
 	var scorch_mat: StandardMaterial3D = get_flat_material(Color(0.1, 0.11, 0.14, 0.88))
 	var scorch: MeshInstance3D = _spawn_cube(root, Vector3(1.4, 0.015, 1.4), Vector3(0.0, -pos.y + 0.01, 0.0), scorch_mat)
 	scorch.scale = Vector3(0.3, 1.0, 0.3)
-	var tw_scorch: Tween = scorch.create_tween()
+	var tw_scorch: Tween = _tween(scorch)
 	tw_scorch.tween_property(scorch, "scale", Vector3.ONE, 0.08).set_ease(Tween.EASE_OUT)
 	tw_scorch.tween_interval(0.35)
 	tw_scorch.tween_property(scorch, "transparency", 1.0, 0.55).set_ease(Tween.EASE_IN)
@@ -295,20 +301,20 @@ static func ko(parent: Node3D, pos: Vector3) -> void:
 		var up_dur: float = puff_dur * 0.45
 		var down_dur: float = puff_dur - up_dur
 
-		var tw_y: Tween = cube.create_tween()
+		var tw_y: Tween = _tween(cube)
 		tw_y.tween_property(cube, "position:y", peak_y, up_dur).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_y.tween_property(cube, "position:y", fall_y, down_dur).set_ease(Tween.EASE_IN_OUT)
 
-		var tw_h: Tween = cube.create_tween().set_parallel(true)
+		var tw_h: Tween = _tween(cube).set_parallel(true)
 		tw_h.tween_property(cube, "position:x", target_x, puff_dur).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_h.tween_property(cube, "position:z", target_z, puff_dur).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 		tw_h.tween_property(cube, "rotation_degrees", Vector3(randf_range(-270.0, 270.0), randf_range(-270.0, 270.0), randf_range(-270.0, 270.0)), puff_dur)
 
-		var tw_scale: Tween = cube.create_tween()
+		var tw_scale: Tween = _tween(cube)
 		tw_scale.tween_property(cube, "scale", Vector3.ONE * 1.2, 0.12).set_ease(Tween.EASE_OUT)
 		tw_scale.tween_property(cube, "scale", Vector3.ZERO, puff_dur - 0.12).set_ease(Tween.EASE_IN)
 
-	var cleaner: Tween = root.create_tween()
+	var cleaner: Tween = _tween(root)
 	cleaner.tween_interval(total_duration + 0.05)
 	cleaner.finished.connect(root.queue_free)
 
@@ -340,7 +346,7 @@ static func projectile(parent: Node3D, from: Vector3, to: Vector3, color: Color,
 	var arc_height: float = clampf(dist * 0.28, 0.35, 1.2)
 	var travel_dur: float = maxf(0.05, duration)
 
-	var tw: Tween = root.create_tween()
+	var tw: Tween = _tween(root)
 	tw.tween_method(func(t: float) -> void:
 		if not is_instance_valid(head):
 			return
@@ -369,16 +375,17 @@ static func projectile(parent: Node3D, from: Vector3, to: Vector3, color: Color,
 # =====================================================================
 
 ## Returns a cached emissive unshaded material for blooms.
-static func get_emissive_material(color: Color, energy: float = 3.0) -> StandardMaterial3D:
-	var key: String = "%s_%.2f" % [color.to_html(true), energy]
+static func get_emissive_material(color: Color, energy: float = 3.0, lit: bool = false) -> StandardMaterial3D:
+	var key: String = "%s_%.2f_%s" % [color.to_html(true), energy, lit]
 	if not _materials.has(key):
 		var mat: StandardMaterial3D = StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		mat.albedo_color = color
 		mat.emission_enabled = true
 		mat.emission = color
 		mat.emission_energy_multiplier = energy
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		if not lit:
+			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_materials[key] = mat
 	return _materials[key]
 

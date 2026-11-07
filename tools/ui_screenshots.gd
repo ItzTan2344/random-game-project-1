@@ -22,8 +22,11 @@ func _run(client: BattleClient) -> void:
 	await _until(func() -> bool: return ui._squad_panel.visible)
 	await _frames(20)
 	var ids: Array = ui._squad_buttons.keys()
-	for i in CombatTypes.DRAFT_BRING - ui._squad_picks.size():
-		ui._on_squad_toggle(ids[ids.size() - 1 - i])
+	for id in ids:
+		if ui._squad_picks.size() >= CombatTypes.DRAFT_BRING:
+			break
+		if not ui._squad_picks.has(id):
+			ui._on_squad_toggle(id)
 	await _frames(5)
 	_shot("0_squad")
 	ui._on_squad_find()
