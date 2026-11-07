@@ -29,6 +29,7 @@ func _ready() -> void:
 	ui.actions_locked.connect(func(actions: Dictionary) -> void: server.lock_actions(HUMAN_SIDE, actions))
 	ui.replacement_requested.connect(func(slot: int, bench: int) -> void: server.choose_replacement(HUMAN_SIDE, slot, bench))
 	ui.restart_requested.connect(_start_match)
+	ui.forfeit_requested.connect(func() -> void: server.forfeit(HUMAN_SIDE))
 	ui.squad_chosen.connect(_on_squad_chosen)
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if args.has("--autoplay"):

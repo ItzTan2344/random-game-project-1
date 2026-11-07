@@ -59,6 +59,10 @@ func choose_replacement(side: int, slot: int, bench_index: int) -> void:
 	_publish(engine.submit_replacement(side, slot, bench_index))
 
 
+func forfeit(side: int) -> void:
+	_publish(engine.forfeit(side))
+
+
 ## Client finished playing the last log. Also fired by the ack timeout.
 func client_ready() -> void:
 	_awaiting_ack = false

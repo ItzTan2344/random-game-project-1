@@ -77,6 +77,16 @@ func submit_actions(side: int, actions: Dictionary) -> Array[CombatEvent]:
 	return _flush()
 
 
+## Concede: the other side wins immediately.
+func forfeit(side: int) -> Array[CombatEvent]:
+	if state.phase == CombatTypes.Phase.FINISHED or side < 0 or side > 1:
+		return _reject(side, "Nothing to forfeit.")
+	state.winner = CombatTypes.other_side(side)
+	state.phase = CombatTypes.Phase.FINISHED
+	_emit(CombatTypes.EventType.BATTLE_ENDED, -1, -1, float(state.winner), {"winner": state.winner, "cycle": state.cycle, "turns": state.turn_count})
+	return _flush()
+
+
 func submit_replacement(side: int, slot: int, bench_index: int) -> Array[CombatEvent]:
 	if state.phase != CombatTypes.Phase.STANDBY:
 		return _reject(side, "No replacement is pending.")

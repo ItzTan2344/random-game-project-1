@@ -7,6 +7,7 @@ signal draft_submitted(picks: Array[int])
 signal actions_locked(actions: Dictionary)
 signal replacement_requested(slot: int, bench_index: int)
 signal restart_requested
+signal forfeit_requested
 signal squad_chosen(ids: Array[StringName])
 
 const SIDE_COLORS: Array[Color] = [Color("#5fa8ff"), Color("#ff7a6b")]
@@ -76,6 +77,11 @@ var _standby_panel: PanelContainer
 var _standby_label: Label
 var _standby_buttons: HBoxContainer
 var _result_panel: PanelContainer
+var _menu_panel: PanelContainer
+var _menu_speed: Button
+var _menu_fullscreen: Button
+var _menu_forfeit: Button
+var _forfeit_armed: bool = false
 var _result_label: Label
 var _result_sub: Label
 var _result_cols: HBoxContainer
@@ -159,6 +165,11 @@ func _ready() -> void:
 	log_toggle.tooltip_text = "Battle log (L)"
 	log_toggle.pressed.connect(_toggle_log)
 	top.add_child(log_toggle)
+	var menu_btn: Button = Button.new()
+	menu_btn.text = "MENU"
+	menu_btn.tooltip_text = "Menu (Esc)"
+	menu_btn.pressed.connect(_toggle_menu)
+	top.add_child(menu_btn)
 
 	_add_side_row(hud, CombatTypes.other_side(viewer_side))
 	var gap: Control = Control.new()
@@ -224,6 +235,7 @@ func _ready() -> void:
 	_build_draft_panel()
 	_build_standby_panel()
 	_build_result_panel()
+	_build_menu_panel()
 	_refresh_controls()
 
 
@@ -440,6 +452,59 @@ func _build_result_panel() -> void:
 	again.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	again.pressed.connect(func() -> void: restart_requested.emit())
 	v.add_child(again)
+
+
+## Pause-style menu: resume, log, speed, fullscreen, forfeit (two clicks), quit.
+func _build_menu_panel() -> void:
+	_menu_panel = _overlay(Color(UITheme.BG, 0.7), true)
+	var center: CenterContainer = CenterContainer.new()
+	_menu_panel.add_child(center)
+	var v: VBoxContainer = _vbox(center, 10)
+	v.custom_minimum_size = Vector2(300, 0)
+	_label(v, &"Title").text = "MENU"
+	_menu_button(v, "RESUME", _toggle_menu).theme_type_variation = &"GoldButton"
+	_menu_button(v, "BATTLE LOG", func() -> void:
+		_toggle_menu()
+		_toggle_log())
+	_menu_speed = _menu_button(v, "", func() -> void:
+		playback_speed = 1.3 if playback_speed < 1.0 else 0.65
+		_refresh_menu())
+	_menu_fullscreen = _menu_button(v, "", func() -> void:
+		var win: Window = get_window()
+		win.mode = Window.MODE_WINDOWED if win.mode == Window.MODE_FULLSCREEN else Window.MODE_FULLSCREEN
+		_refresh_menu())
+	_menu_forfeit = _menu_button(v, "FORFEIT", func() -> void:
+		if not _forfeit_armed:
+			_forfeit_armed = true
+			_refresh_menu()
+			return
+		_toggle_menu()
+		forfeit_requested.emit())
+	_menu_button(v, "QUIT GAME", func() -> void: get_tree().quit())
+
+
+func _menu_button(parent: Control, text: String, on_press: Callable) -> Button:
+	var b: Button = Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(300, 52)
+	b.pressed.connect(on_press)
+	parent.add_child(b)
+	return b
+
+
+func _toggle_menu() -> void:
+	_menu_panel.visible = not _menu_panel.visible
+	_forfeit_armed = false
+	_refresh_menu()
+
+
+func _refresh_menu() -> void:
+	_menu_speed.text = "BATTLE SPEED: %s" % ("FAST" if playback_speed >= 1.0 else "NORMAL")
+	_menu_fullscreen.text = "FULLSCREEN: %s" % ("ON" if get_window().mode == Window.MODE_FULLSCREEN else "OFF")
+	var in_battle: bool = not snapshot.is_empty() and not _result_panel.visible and not _squad_panel.visible
+	_menu_forfeit.disabled = not in_battle
+	_menu_forfeit.text = "CONFIRM FORFEIT?" if _forfeit_armed else "FORFEIT"
+	_menu_forfeit.add_theme_color_override("font_color", UITheme.DANGER)
 
 
 func _overlay(color: Color, full: bool) -> PanelContainer:
@@ -1037,11 +1102,14 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _pending_skill != -1 and event.is_action_pressed("ui_cancel"):
-		_pending_skill = -1
-		_clear_target_highlights()
-		_refresh_controls()
+	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
+		if _pending_skill != -1 and not _menu_panel.visible:
+			_pending_skill = -1
+			_clear_target_highlights()
+			_refresh_controls()
+		else:
+			_toggle_menu()
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
 	if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and _pending_skill != -1:
