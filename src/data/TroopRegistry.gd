@@ -1,10 +1,8 @@
 class_name TroopRegistry
 extends RefCounted
-## Loads the starter roster (.tres) and builds the default 6-troop squads.
+## Loads the roster from every .tres in TROOP_DIR. Never list troop ids in code: new troops are picked up by dropping a .tres in.
 
 const TROOP_DIR: String = "res://src/data/troops/"
-const SQUAD_A: Array[StringName] = [&"ember_duelist", &"hex_weaver", &"iron_bastion", &"swift_courier", &"storm_lancer", &"grove_keeper"]
-const SQUAD_B: Array[StringName] = [&"frost_warden", &"blood_reaver", &"grove_keeper", &"storm_lancer", &"iron_bastion", &"swift_courier"]
 
 
 static func load_all() -> Dictionary[StringName, TroopData]:
@@ -30,5 +28,22 @@ static func build_squad(ids: Array[StringName]) -> Array[TroopData]:
 	return squad
 
 
-static func default_squad(side: int) -> Array[TroopData]:
-	return build_squad(SQUAD_A if side == CombatTypes.Side.A else SQUAD_B)
+## Sorted by id so a seed always gives the same squad.
+static func sorted_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	ids.assign(load_all().keys())
+	ids.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
+	return ids
+
+
+## Random squad of DRAFT_BRING distinct troops (AI opponents, autoplay, tests). Deterministic per seed.
+static func random_squad(seed_value: int) -> Array[TroopData]:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var ids: Array[StringName] = sorted_ids()
+	for i in range(ids.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: StringName = ids[i]
+		ids[i] = ids[j]
+		ids[j] = tmp
+	return build_squad(ids.slice(0, CombatTypes.DRAFT_BRING))

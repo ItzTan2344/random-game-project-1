@@ -14,6 +14,8 @@ var server: LocalServer
 var ui: BattleUI
 var _queue: Array[Dictionary] = []
 var _playing: bool = false
+## Last squad the player brought; preselected next time.
+var _last_squad: Array[StringName] = []
 
 
 func _ready() -> void:
@@ -27,6 +29,7 @@ func _ready() -> void:
 	ui.actions_locked.connect(func(actions: Dictionary) -> void: server.lock_actions(HUMAN_SIDE, actions))
 	ui.replacement_requested.connect(func(slot: int, bench: int) -> void: server.choose_replacement(HUMAN_SIDE, slot, bench))
 	ui.restart_requested.connect(_start_match)
+	ui.squad_chosen.connect(_on_squad_chosen)
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if args.has("--autoplay"):
 		autoplay_seconds = 20.0
@@ -36,14 +39,35 @@ func _ready() -> void:
 	_start_match()
 
 
+## Autoplay skips squad select; otherwise the player builds a squad first.
 func _start_match() -> void:
 	_queue.clear()
 	ui.reset()
-	var seed_value: int = match_seed if match_seed != 0 else int(Time.get_unix_time_from_system())
+	if autoplay_seconds > 0.0:
+		_begin(TroopRegistry.random_squad(_seed() + 1))
+		return
+	var roster: Array[Dictionary] = []
+	for id: StringName in TroopRegistry.sorted_ids():
+		roster.append(TroopRegistry.load_all()[id].to_summary())
+	ui.show_squad_select(roster, _last_squad)
+
+
+func _on_squad_chosen(ids: Array[StringName]) -> void:
+	_last_squad = ids
+	_begin(TroopRegistry.build_squad(ids))
+
+
+## "Find match" pairs the player with a local AI bringing a random squad.
+func _begin(player_squad: Array[TroopData]) -> void:
+	var seed_value: int = _seed()
 	var ai_sides: Array[int] = [CombatTypes.Side.B]
 	if autoplay_seconds > 0.0:
 		ai_sides = [CombatTypes.Side.A, CombatTypes.Side.B]
-	server.start_match(seed_value, TroopRegistry.default_squad(CombatTypes.Side.A), TroopRegistry.default_squad(CombatTypes.Side.B), ai_sides, HUMAN_SIDE)
+	server.start_match(seed_value, player_squad, TroopRegistry.random_squad(seed_value), ai_sides, HUMAN_SIDE)
+
+
+func _seed() -> int:
+	return match_seed if match_seed != 0 else int(Time.get_unix_time_from_system())
 
 
 func _on_events_published(events: Array[Dictionary], snapshot: Dictionary) -> void:

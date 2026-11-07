@@ -16,6 +16,11 @@ Main scene: `res://src/client/main.tscn`. Windows 11, PowerShell.
 - `src/client/`: `BattleClient` (log queue and playback), `BattleUI` + `TroopCard` (built in code, no hand-written .tscn).
 - Tests: `& "<exe>" --headless --path D:\Game\random_project -s res://tests/combat_simulation_test.gd` (exit 0 = pass; prints balance stats).
 - Smoke-run the real UI with AI on both sides: `& "<exe>" --headless --path D:\Game\random_project -- --autoplay`.
+- **The roster is data-driven. Never hardcode troop ids or the troop count.** `TroopRegistry.load_all()` loads every
+  `.tres` in `src/data/troops/`, and the squad select screen, AI squads (`TroopRegistry.random_squad(seed)`), tests and
+  `balance_sim` all read from it. To add a troop, add a `.tres` (via `build_roster.gd`) and an avatar
+  `src/client/avatars/<troop_id>.gd`. Nothing else needs a code change. Flow: squad select (pick 6) → Find Match (local AI
+  with a random squad) → team preview (pick 4).
 - Roster authoring: `tools/build_roster.gd` regenerates `troops/*.tres`, which overwrites Inspector edits.
 
 ## Code-built models

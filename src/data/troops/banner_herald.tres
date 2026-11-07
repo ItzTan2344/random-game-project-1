@@ -1,0 +1,75 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_s2tyf"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_0l5y5"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_oo6tl"]
+
+[sub_resource type="Resource" id="Resource_hw6h4"]
+script = ExtResource("2_0l5y5")
+skill_name = "Pennant Strike"
+description = "Strike one enemy (110% ATK). Generates 2 Team Energy."
+attack_scaling = 1.1
+energy_gain = 2
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_8s1sq"]
+script = ExtResource("3_oo6tl")
+target = 2
+magnitude = 0.3
+duration = 2
+
+[sub_resource type="Resource" id="Resource_43tfy"]
+script = ExtResource("3_oo6tl")
+target = 2
+stat = 1
+magnitude = 0.3
+duration = 2
+
+[sub_resource type="Resource" id="Resource_wbx4k"]
+script = ExtResource("2_0l5y5")
+skill_name = "War Anthem"
+description = "Raise ATK and SPA of both allies by 30% for 2 turns."
+slot = 1
+cooldown = 3
+target_type = 4
+effects = Array[ExtResource("3_oo6tl")]([SubResource("Resource_8s1sq"), SubResource("Resource_43tfy")])
+
+[sub_resource type="Resource" id="Resource_4rsqf"]
+script = ExtResource("3_oo6tl")
+kind = 4
+target = 2
+magnitude = 0.18
+
+[sub_resource type="Resource" id="Resource_dxe8k"]
+script = ExtResource("3_oo6tl")
+kind = 5
+target = 2
+
+[sub_resource type="Resource" id="Resource_qjxch"]
+script = ExtResource("2_0l5y5")
+skill_name = "Fall Back"
+description = "Heal both allies 18% max HP and cleanse their debuffs, then switch out with a benched troop.
+Overdrive (8): cooldown -2."
+slot = 2
+cooldown = 4
+target_type = 4
+effects = Array[ExtResource("3_oo6tl")]([SubResource("Resource_4rsqf"), SubResource("Resource_dxe8k")])
+self_switch_after = true
+overdrive_kind = 2
+overdrive_cost = 8
+overdrive_value = 2.0
+
+[resource]
+script = ExtResource("1_s2tyf")
+troop_id = &"banner_herald"
+display_name = "Banner Herald"
+archetype = 3
+max_hp = 1080
+attack = 156
+special_attack = 145
+defense = 120
+special_defense = 120
+speed = 112
+crit_chance = 0.12
+effectiveness = 0.2
+skills = Array[ExtResource("2_0l5y5")]([SubResource("Resource_hw6h4"), SubResource("Resource_wbx4k"), SubResource("Resource_qjxch")])

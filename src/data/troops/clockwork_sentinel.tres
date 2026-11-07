@@ -1,0 +1,76 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_yfiq7"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_pdmcl"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_574sh"]
+
+[sub_resource type="Resource" id="Resource_lfymj"]
+script = ExtResource("3_574sh")
+stat = 4
+magnitude = -0.15
+duration = 1
+chance = 0.5
+
+[sub_resource type="Resource" id="Resource_3yhf2"]
+script = ExtResource("2_pdmcl")
+skill_name = "Gear Jab"
+description = "Strike one enemy (100% ATK); 50% chance to lower its SPE by 15% for 1 turn."
+attack_scaling = 1.0
+effects = Array[ExtResource("3_574sh")]([SubResource("Resource_lfymj")])
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_u7w0w"]
+script = ExtResource("3_574sh")
+target = 2
+stat = 4
+magnitude = 0.2
+duration = 2
+
+[sub_resource type="Resource" id="Resource_eiprt"]
+script = ExtResource("3_574sh")
+kind = 6
+target = 1
+magnitude = 2.0
+
+[sub_resource type="Resource" id="Resource_sj2gd"]
+script = ExtResource("2_pdmcl")
+skill_name = "Overclock"
+description = "Raise SPE of both allies by 20% for 2 turns and gain 2 Team Energy."
+slot = 1
+cooldown = 3
+target_type = 4
+effects = Array[ExtResource("3_574sh")]([SubResource("Resource_u7w0w"), SubResource("Resource_eiprt")])
+
+[sub_resource type="Resource" id="Resource_wr4xn"]
+script = ExtResource("3_574sh")
+kind = 1
+duration = 1
+chance = 0.8
+
+[sub_resource type="Resource" id="Resource_kbmm2"]
+script = ExtResource("2_pdmcl")
+skill_name = "Time Lock"
+description = "Strike one enemy (120% ATK); 70% chance to Stun for 1 turn.
+Overdrive (10): cooldown -2."
+slot = 2
+cooldown = 5
+attack_scaling = 1.5
+effects = Array[ExtResource("3_574sh")]([SubResource("Resource_wr4xn")])
+overdrive_kind = 2
+overdrive_cost = 10
+overdrive_value = 2.0
+
+[resource]
+script = ExtResource("1_yfiq7")
+troop_id = &"clockwork_sentinel"
+display_name = "Clockwork Sentinel"
+archetype = 1
+max_hp = 1100
+attack = 165
+special_attack = 90
+defense = 130
+special_defense = 110
+speed = 108
+effectiveness = 0.35
+skills = Array[ExtResource("2_pdmcl")]([SubResource("Resource_3yhf2"), SubResource("Resource_sj2gd"), SubResource("Resource_kbmm2")])

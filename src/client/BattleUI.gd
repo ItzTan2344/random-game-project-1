@@ -7,6 +7,7 @@ signal draft_submitted(picks: Array[int])
 signal actions_locked(actions: Dictionary)
 signal replacement_requested(slot: int, bench_index: int)
 signal restart_requested
+signal squad_chosen(ids: Array[StringName])
 
 const SIDE_COLORS: Array[Color] = [Color("#5fa8ff"), Color("#ff7a6b")]
 const OVERDRIVE_NAMES: Array[String] = ["", "Guarantee Effects", "Reduce Cooldown", "Act First", "Bonus Damage"]
@@ -50,6 +51,12 @@ var _prompt_label: Label
 var _log_panel: PanelContainer
 var _log: RichTextLabel
 var _float_layer: Control
+var _squad_panel: PanelContainer
+var _squad_grid: GridContainer
+var _squad_status: Label
+var _squad_find: Button
+var _squad_picks: Array[StringName] = []
+var _squad_buttons: Dictionary[StringName, Button] = {}
 var _draft_panel: PanelContainer
 var _draft_grid: GridContainer
 var _draft_buttons: Array[Button] = []
@@ -208,6 +215,7 @@ func _ready() -> void:
 	_log.scroll_following = true
 	_log_panel.add_child(_log)
 
+	_build_squad_panel()
 	_build_draft_panel()
 	_build_standby_panel()
 	_build_result_panel()
@@ -243,6 +251,83 @@ func _add_side_row(parent: Control, side: int) -> void:
 			_switch_buttons.append(b)
 	else:
 		_bench_boxes[side] = _hbox(bench, 6)
+
+
+## Squad select: the whole roster, built from data at show time, so new troops appear without code changes.
+func _build_squad_panel() -> void:
+	_squad_panel = _overlay(Color(UITheme.BG, 0.97), true)
+	var v: VBoxContainer = _vbox(_squad_panel, 14)
+	var head: HBoxContainer = _hbox(v, 18)
+	_label(head, &"Title").text = "BUILD YOUR SQUAD"
+	var sub: Label = _label(head, &"Dim")
+	sub.text = "Choose %d troops to bring. You pick %d of them after you see the opponent. Hover a troop for its skills." % [CombatTypes.DRAFT_BRING, CombatTypes.DRAFT_PICK]
+	sub.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+	_squad_grid = GridContainer.new()
+	_squad_grid.columns = 6
+	_squad_grid.add_theme_constant_override("h_separation", 10)
+	_squad_grid.add_theme_constant_override("v_separation", 10)
+	scroll.add_child(_squad_grid)
+	var bottom: HBoxContainer = _hbox(v, 12)
+	_squad_status = _label(bottom, &"Header")
+	_squad_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_squad_status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_squad_find = Button.new()
+	_squad_find.text = "FIND MATCH"
+	_squad_find.theme_type_variation = &"GoldButton"
+	_squad_find.custom_minimum_size = Vector2(240, 60)
+	_squad_find.add_theme_font_size_override("font_size", 22)
+	_squad_find.pressed.connect(_on_squad_find)
+	bottom.add_child(_squad_find)
+
+
+## `roster`: TroopData.to_summary() of every troop. `preselected`: last squad, kept if those troops still exist.
+func show_squad_select(roster: Array[Dictionary], preselected: Array[StringName]) -> void:
+	_clear(_squad_grid)
+	_squad_buttons.clear()
+	_squad_picks.clear()
+	for s: Dictionary in roster:
+		var id: StringName = StringName(s["troop_id"])
+		var b: Button = _troop_tile(s)
+		b.pressed.connect(_on_squad_toggle.bind(id))
+		_squad_grid.add_child(b)
+		_squad_buttons[id] = b
+	for id in preselected:
+		if _squad_buttons.has(id) and _squad_picks.size() < CombatTypes.DRAFT_BRING:
+			_squad_picks.append(id)
+	_set_overlay(_squad_panel, true)
+	_refresh_squad()
+
+
+func _on_squad_toggle(id: StringName) -> void:
+	if _squad_picks.has(id):
+		_squad_picks.erase(id)
+	elif _squad_picks.size() < CombatTypes.DRAFT_BRING:
+		_squad_picks.append(id)
+	_refresh_squad()
+
+
+func _on_squad_find() -> void:
+	if _squad_picks.size() != CombatTypes.DRAFT_BRING:
+		return
+	_squad_panel.visible = false
+	squad_chosen.emit(_squad_picks.duplicate())
+
+
+func _refresh_squad() -> void:
+	for id: StringName in _squad_buttons:
+		var picked: bool = _squad_picks.has(id)
+		var b: Button = _squad_buttons[id]
+		for state: String in ["normal", "hover"]:
+			if picked:
+				b.add_theme_stylebox_override(state, _picked_style)
+			else:
+				b.remove_theme_stylebox_override(state)
+	_squad_find.disabled = _squad_picks.size() != CombatTypes.DRAFT_BRING
+	_squad_status.text = "%d / %d chosen" % [_squad_picks.size(), CombatTypes.DRAFT_BRING]
 
 
 func _build_draft_panel() -> void:
@@ -391,6 +476,7 @@ func reset() -> void:
 	_log.clear()
 	_result_panel.visible = false
 	_standby_panel.visible = false
+	_squad_panel.visible = false
 
 
 func set_input_locked(locked: bool) -> void:
@@ -805,11 +891,22 @@ func _show_draft(snap: Dictionary) -> void:
 
 ## Clickable squad tile: portrait framed in the archetype colour, name, archetype chip, stats, pick badge.
 func _draft_tile(s: Dictionary, index: int) -> Button:
+	var b: Button = _troop_tile(s)
+	b.pressed.connect(_on_draft_toggle.bind(index))
+	var badge: Label = _label(b, &"Header")
+	badge.position = Vector2(10, 6)
+	badge.add_theme_color_override("font_color", UITheme.GOLD)
+	_draft_badges.append(badge)
+	_draft_buttons.append(b)
+	return b
+
+
+## Troop tile shared by squad select and the draft: portrait, name, archetype chip, stats; tooltip lists skills.
+func _troop_tile(s: Dictionary) -> Button:
 	var arch: int = int(s["archetype"])
 	var b: Button = Button.new()
 	b.custom_minimum_size = Vector2(204, 236)
 	b.tooltip_text = _squad_tooltip(s)
-	b.pressed.connect(_on_draft_toggle.bind(index))
 	var v: VBoxContainer = _vbox(b, 4)
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 10)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -829,11 +926,6 @@ func _draft_tile(s: Dictionary, index: int) -> Button:
 		s["defense"], s["special_defense"], roundi(float(s["effectiveness"]) * 100.0)
 	]
 	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var badge: Label = _label(b, &"Header")
-	badge.position = Vector2(10, 6)
-	badge.add_theme_color_override("font_color", UITheme.GOLD)
-	_draft_badges.append(badge)
-	_draft_buttons.append(b)
 	return b
 
 

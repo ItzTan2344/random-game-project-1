@@ -1,6 +1,6 @@
 extends SceneTree
 ## Balance probe: random 6-troop squads from the roster, AI vs AI. Picks are random 4 of 6 (not the AI's draft) so every troop is sampled evenly. Prints per-troop pick count and win rate.
-## Run: godot --headless -s res://tools/balance_sim.gd [-- N]
+## Run: godot --headless -s res://tools/balance_sim.gd [-- N [SEED]]
 
 const DEFAULT_MATCHES: int = 600
 
@@ -15,7 +15,7 @@ func _initialize() -> void:
 		all.append(d)
 	all.sort_custom(func(a: TroopData, b: TroopData) -> bool: return String(a.troop_id) < String(b.troop_id))
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = 12345
+	rng.seed = int(args[1]) if args.size() > 1 else 12345
 	var picked: Dictionary = {}
 	var won: Dictionary = {}
 	var side_wins: Array[int] = [0, 0]

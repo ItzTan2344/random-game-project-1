@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_hnxbt"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_lr5nb"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_x5nxc"]
+
+[sub_resource type="Resource" id="Resource_btk4k"]
+script = ExtResource("2_lr5nb")
+skill_name = "Splash"
+description = "Strike one enemy (85% SPA). Generates 2 Team Energy."
+special = true
+attack_scaling = 0.85
+energy_gain = 2
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_7ug07"]
+script = ExtResource("3_x5nxc")
+kind = 3
+target = 2
+magnitude = 0.1
+duration = 2
+
+[sub_resource type="Resource" id="Resource_px7ri"]
+script = ExtResource("2_lr5nb")
+skill_name = "Tidal Ward"
+description = "Passive: on switch-in, shield both allies for 10% of max HP for 2 turns (3-turn internal cooldown)."
+slot = 1
+is_passive = true
+trigger = 1
+cooldown = 3
+target_type = 4
+effects = Array[ExtResource("3_x5nxc")]([SubResource("Resource_7ug07")])
+
+[sub_resource type="Resource" id="Resource_y1wpd"]
+script = ExtResource("3_x5nxc")
+stat = 4
+magnitude = -0.15
+duration = 2
+
+[sub_resource type="Resource" id="Resource_q4572"]
+script = ExtResource("2_lr5nb")
+skill_name = "Riptide"
+description = "Hit all enemies (90% SPA) and lower their SPE by 15% for 2 turns, then switch out with a benched troop.
+Overdrive (8): cooldown -2."
+slot = 2
+cooldown = 4
+target_type = 1
+special = true
+attack_scaling = 0.9
+effects = Array[ExtResource("3_x5nxc")]([SubResource("Resource_y1wpd")])
+self_switch_after = true
+overdrive_kind = 2
+overdrive_cost = 8
+overdrive_value = 2.0
+
+[resource]
+script = ExtResource("1_hnxbt")
+troop_id = &"tide_caller"
+display_name = "Tide Caller"
+archetype = 3
+attack = 85
+special_attack = 168
+defense = 105
+special_defense = 120
+speed = 110
+crit_chance = 0.05
+effectiveness = 0.15
+skills = Array[ExtResource("2_lr5nb")]([SubResource("Resource_btk4k"), SubResource("Resource_px7ri"), SubResource("Resource_q4572")])

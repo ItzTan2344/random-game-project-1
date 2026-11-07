@@ -1,5 +1,5 @@
 extends SceneTree
-## Authoring tool: (re)writes the 8 starter troops to res://src/data/troops/*.tres.
+## Authoring tool: (re)writes the roster to res://src/data/troops/*.tres.
 ## The .tres files are the source of truth afterwards; re-running this overwrites Inspector edits.
 ## Run: godot --headless -s res://tools/build_roster.gd
 
@@ -102,7 +102,7 @@ func _roster() -> Array[TroopData]:
 	]))
 
 	# ---------------- Control / Disruption ----------------
-	roster.append(_troop("hex_weaver", "Hex Weaver", A.CONTROL, [960, 100, 182, 95, 112, 114, 0.1, 1.5, 0.45], [
+	roster.append(_troop("hex_weaver", "Hex Weaver", A.CONTROL, [980, 100, 190, 98, 112, 114, 0.1, 1.5, 0.45], [
 		_s1("Hex Bolt", "Strike one enemy (100% ATK); 35% chance to lower ATK by 25% for 2 turns.", {"special": true, "attack_scaling": 1.0},
 			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.25, 2, 0.35, ST.ATTACK)]),
 		_skill("Binding Sigil", "Strike one enemy (80% ATK); 50% chance to Stun for 1 turn.", 1, T.SINGLE_ENEMY, 3,
@@ -130,7 +130,7 @@ func _roster() -> Array[TroopData]:
 			{"attack_scaling": 0.4, "hp_scaling": 0.08, "missing_hp_bonus": 0.65, "overdrive_kind": OD.BONUS_DAMAGE, "overdrive_cost": 10, "overdrive_value": 0.5},
 			[_fx(K.STAT_MOD, ET.SELF, 0.3, 2, 1.0, ST.DEFENSE)]),
 	]))
-	roster.append(_troop("blood_reaver", "Blood Reaver", A.BRUISER, [950, 140, 80, 95, 80, 100, 0.15, 1.6, 0.0], [
+	roster.append(_troop("blood_reaver", "Blood Reaver", A.BRUISER, [970, 147, 80, 95, 82, 100, 0.15, 1.6, 0.0], [
 		_s1("Rending Cleave", "Strike one enemy (100% ATK, up to +30% at low HP).", {"attack_scaling": 1.0, "missing_hp_bonus": 0.3}),
 		_skill("Rally Cry", "Raise ATK of both allies by 30% for 2 turns and the partner's SPE by 15%.", 1, T.ALL_ALLIES, 3,
 			{}, [_fx(K.STAT_MOD, ET.ALLIES, 0.3, 2, 1.0, ST.ATTACK), _fx(K.STAT_MOD, ET.PARTNER, 0.15, 2, 1.0, ST.SPEED)]),
@@ -140,7 +140,7 @@ func _roster() -> Array[TroopData]:
 	]))
 
 	# ---------------- Pivot / Switch-Synergy ----------------
-	roster.append(_troop("swift_courier", "Swift Courier", A.PIVOT, [940, 190, 90, 95, 85, 120, 0.15, 1.5, 0.2], [
+	roster.append(_troop("swift_courier", "Swift Courier", A.PIVOT, [940, 182, 90, 95, 85, 119, 0.15, 1.5, 0.2], [
 		_s1("Quick Jab", "Strike one enemy (95% ATK). Generates 2 Team Energy.", {"attack_scaling": 0.95, "energy_gain": 2}),
 		_passive("Slipstream Entry", "Passive: on switch-in, gain +20% SPE for 2 turns and 2 Team Energy (2-turn internal cooldown).",
 			TR.ON_SWITCH_IN, 2, T.SELF, [_fx(K.STAT_MOD, ET.SELF, 0.2, 2, 1.0, ST.SPEED), _fx(K.ENERGY, ET.SELF, 2.0)]),
@@ -156,5 +156,94 @@ func _roster() -> Array[TroopData]:
 		_skill("Sanctuary Bloom", "Heal both allies 18% max HP, shield them for 12% for 2 turns, raise DEF by 25% for 2 turns.\nOverdrive (10): cooldown -2.", 2, T.ALL_ALLIES, 5,
 			{"overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 10, "overdrive_value": 2.0},
 			[_fx(K.HEAL, ET.ALLIES, 0.18), _fx(K.SHIELD, ET.ALLIES, 0.12, 2), _fx(K.STAT_MOD, ET.ALLIES, 0.25, 2, 1.0, ST.DEFENSE)]),
+	]))
+
+	# ---------------- Expansion: Aggro ----------------
+	roster.append(_troop("ash_ranger", "Ash Ranger", A.AGGRO, [860, 178, 90, 85, 80, 116, 0.3, 1.6, 0.0], [
+		_s1("Ember Arrow", "Strike one enemy (100% ATK); 30% chance to Burn it for 2 turns.", {"attack_scaling": 1.0},
+			[_fx(K.DOT, ET.SKILL_TARGETS, 0.2, 2, 0.3)]),
+		_skill("Volley", "Hit all enemies (70% ATK, +25% vs debuffed).", 1, T.ALL_ENEMIES, 3,
+			{"attack_scaling": 0.7, "bonus_vs_debuffed": 0.25}),
+		_skill("Piercing Shot", "Strike one enemy (220% ATK).\nOverdrive (15): act first this round.", 2, T.SINGLE_ENEMY, 4,
+			{"attack_scaling": 2.2, "overdrive_kind": OD.ACT_FIRST, "overdrive_cost": 15}),
+	]))
+	roster.append(_troop("void_arcanist", "Void Arcanist", A.AGGRO, [840, 90, 195, 80, 95, 110, 0.15, 1.5, 0.1], [
+		_s1("Void Bolt", "Strike one enemy (100% ATK).", {"special": true, "attack_scaling": 1.0}),
+		_skill("Null Rift", "Strike one enemy (140% ATK); 70% chance to lower its SPD by 25% for 2 turns.", 1, T.SINGLE_ENEMY, 3,
+			{"special": true, "attack_scaling": 1.4}, [_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.25, 2, 0.7, ST.SPECIAL_DEFENSE)]),
+		_skill("Singularity", "Hit all enemies (130% ATK).\nOverdrive (10): +40% damage.", 2, T.ALL_ENEMIES, 5,
+			{"special": true, "attack_scaling": 1.3, "overdrive_kind": OD.BONUS_DAMAGE, "overdrive_cost": 10, "overdrive_value": 0.4}),
+	]))
+
+	# ---------------- Expansion: Control ----------------
+	roster.append(_troop("mire_witch", "Mire Witch", A.CONTROL, [940, 95, 160, 95, 105, 106, 0.1, 1.5, 0.5], [
+		_s1("Bog Spit", "Strike one enemy (90% ATK); 40% chance to Poison it for 2 turns.", {"special": true, "attack_scaling": 0.9},
+			[_fx(K.DOT, ET.SKILL_TARGETS, 0.3, 2, 0.4)]),
+		_skill("Choking Fog", "Hit all enemies (60% ATK); 55% chance to Poison each for 2 turns.", 1, T.ALL_ENEMIES, 3,
+			{"special": true, "attack_scaling": 0.6}, [_fx(K.DOT, ET.SKILL_TARGETS, 0.3, 2, 0.55)]),
+		_skill("Withering Curse", "Strike one enemy (150% ATK, +40% vs debuffed); 80% chance to lower its ATK and SPA by 20% for 2 turns.\nOverdrive (10): all effects are guaranteed.", 2, T.SINGLE_ENEMY, 4,
+			{"special": true, "attack_scaling": 1.5, "bonus_vs_debuffed": 0.4, "overdrive_kind": OD.GUARANTEE_EFFECTS, "overdrive_cost": 10},
+			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.2, 2, 0.8, ST.ATTACK), _fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.2, 2, 0.8, ST.SPECIAL_ATTACK)]),
+	]))
+	roster.append(_troop("clockwork_sentinel", "Clockwork Sentinel", A.CONTROL, [1100, 165, 90, 130, 110, 108, 0.15, 1.5, 0.35], [
+		_s1("Gear Jab", "Strike one enemy (100% ATK); 50% chance to lower its SPE by 15% for 1 turn.", {"attack_scaling": 1.0},
+			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.15, 1, 0.5, ST.SPEED)]),
+		_skill("Overclock", "Raise SPE of both allies by 20% for 2 turns and gain 2 Team Energy.", 1, T.ALL_ALLIES, 3,
+			{}, [_fx(K.STAT_MOD, ET.ALLIES, 0.2, 2, 1.0, ST.SPEED), _fx(K.ENERGY, ET.SELF, 2.0)]),
+		_skill("Time Lock", "Strike one enemy (120% ATK); 70% chance to Stun for 1 turn.\nOverdrive (10): cooldown -2.", 2, T.SINGLE_ENEMY, 5,
+			{"attack_scaling": 1.5, "overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 10, "overdrive_value": 2.0},
+			[_fx(K.STUN, ET.SKILL_TARGETS, 0.0, 1, 0.8)]),
+	]))
+	roster.append(_troop("mirror_oracle", "Mirror Oracle", A.CONTROL, [1010, 90, 178, 105, 125, 111, 0.1, 1.5, 0.4], [
+		_s1("Glimmer", "Strike one enemy (95% ATK); 40% chance to lower its EFF by 25% for 2 turns.", {"special": true, "attack_scaling": 0.95},
+			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.25, 2, 0.4, ST.EFFECTIVENESS)]),
+		_passive("Reflecting Veil", "Passive: when debuffed, lower all enemies' EFF by 30% for 2 turns (3-turn internal cooldown).",
+			TR.ON_DEBUFF_RECEIVED, 3, T.SELF, [_fx(K.STAT_MOD, ET.ENEMIES, -0.3, 2, 1.0, ST.EFFECTIVENESS)]),
+		_skill("Shatter Sight", "Hit all enemies (80% ATK); 75% chance to lower ATK and SPA by 20% for 2 turns.\nOverdrive (10): all effects are guaranteed.", 2, T.ALL_ENEMIES, 5,
+			{"special": true, "attack_scaling": 0.8, "overdrive_kind": OD.GUARANTEE_EFFECTS, "overdrive_cost": 10},
+			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.2, 2, 0.75, ST.ATTACK), _fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.2, 2, 0.75, ST.SPECIAL_ATTACK)]),
+	]))
+
+	# ---------------- Expansion: Bruiser ----------------
+	roster.append(_troop("stone_colossus", "Stone Colossus", A.BRUISER, [1250, 130, 70, 140, 115, 92, 0.05, 1.5, 0.0], [
+		_s1("Rock Slam", "Strike one enemy (50% ATK + 6% max HP).", {"attack_scaling": 0.5, "hp_scaling": 0.06}),
+		_passive("Stoneskin Link", "Passive: when the partner is hit, raise its DEF and SPD by 20% for 2 turns (2-turn internal cooldown).",
+			TR.ON_ALLY_HIT, 2, T.SINGLE_ALLY, [_fx(K.STAT_MOD, ET.SKILL_TARGETS, 0.2, 2, 1.0, ST.DEFENSE), _fx(K.STAT_MOD, ET.SKILL_TARGETS, 0.2, 2, 1.0, ST.SPECIAL_DEFENSE)]),
+		_skill("Quake", "Hit all enemies (40% ATK + 10% max HP); 60% chance to lower SPE by 20% for 2 turns.\nOverdrive (10): +50% damage.", 2, T.ALL_ENEMIES, 4,
+			{"attack_scaling": 0.4, "hp_scaling": 0.1, "overdrive_kind": OD.BONUS_DAMAGE, "overdrive_cost": 10, "overdrive_value": 0.5},
+			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.2, 2, 0.6, ST.SPEED)]),
+	]))
+	roster.append(_troop("thorn_berserker", "Thorn Berserker", A.BRUISER, [1000, 150, 70, 90, 80, 98, 0.2, 1.6, 0.0], [
+		_s1("Maul", "Strike one enemy (100% ATK, up to +40% at low HP).", {"attack_scaling": 1.0, "missing_hp_bonus": 0.4}),
+		_skill("Bloodlust", "Raise own ATK by 30% and crit chance by 20% for 2 turns, and heal 8% max HP.", 1, T.SELF, 3,
+			{}, [_fx(K.STAT_MOD, ET.SELF, 0.3, 2, 1.0, ST.ATTACK), _fx(K.STAT_MOD, ET.SELF, 0.2, 2, 1.0, ST.CRIT_CHANCE), _fx(K.HEAL, ET.SELF, 0.08)]),
+		_skill("Savage Rend", "Strike one enemy (200% ATK, up to +50% at low HP).\nOverdrive (15): act first this round.", 2, T.SINGLE_ENEMY, 4,
+			{"attack_scaling": 2.0, "missing_hp_bonus": 0.5, "overdrive_kind": OD.ACT_FIRST, "overdrive_cost": 15}),
+	]))
+
+	# ---------------- Expansion: Pivot ----------------
+	roster.append(_troop("tide_caller", "Tide Caller", A.PIVOT, [1000, 85, 168, 105, 120, 110, 0.05, 1.5, 0.15], [
+		_s1("Splash", "Strike one enemy (85% ATK). Generates 2 Team Energy.", {"special": true, "attack_scaling": 0.85, "energy_gain": 2}),
+		_passive("Tidal Ward", "Passive: on switch-in, shield both allies for 10% of max HP for 2 turns (3-turn internal cooldown).",
+			TR.ON_SWITCH_IN, 3, T.ALL_ALLIES, [_fx(K.SHIELD, ET.ALLIES, 0.10, 2)]),
+		_skill("Riptide", "Hit all enemies (90% ATK) and lower their SPE by 15% for 2 turns, then switch out with a benched troop.\nOverdrive (8): cooldown -2.", 2, T.ALL_ENEMIES, 4,
+			{"special": true, "attack_scaling": 0.9, "self_switch_after": true, "overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 8, "overdrive_value": 2.0},
+			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.15, 2, 1.0, ST.SPEED)]),
+	]))
+	roster.append(_troop("shadow_fox", "Shadow Fox", A.PIVOT, [900, 185, 80, 90, 85, 118, 0.2, 1.5, 0.25], [
+		_s1("Nip", "Strike one enemy (85% ATK); 30% chance to lower its DEF by 20% for 2 turns.", {"attack_scaling": 0.85},
+			[_fx(K.STAT_MOD, ET.SKILL_TARGETS, -0.2, 2, 0.3, ST.DEFENSE)]),
+		_passive("Ambush", "Passive: on switch-in, lower all enemies' SPE by 15% for 2 turns (2-turn internal cooldown).",
+			TR.ON_SWITCH_IN, 2, T.SELF, [_fx(K.STAT_MOD, ET.ENEMIES, -0.15, 2, 1.0, ST.SPEED)]),
+		_skill("Vanishing Strike", "Strike one enemy (150% ATK, +30% vs debuffed), then switch out with a benched troop.\nOverdrive (12): act first this round.", 2, T.SINGLE_ENEMY, 4,
+			{"attack_scaling": 1.5, "bonus_vs_debuffed": 0.3, "self_switch_after": true, "overdrive_kind": OD.ACT_FIRST, "overdrive_cost": 12}),
+	]))
+	roster.append(_troop("banner_herald", "Banner Herald", A.PIVOT, [1080, 156, 145, 120, 120, 112, 0.12, 1.5, 0.2], [
+		_s1("Pennant Strike", "Strike one enemy (110% ATK). Generates 2 Team Energy.", {"attack_scaling": 1.1, "energy_gain": 2}),
+		_skill("War Anthem", "Raise ATK and SPA of both allies by 30% for 2 turns.", 1, T.ALL_ALLIES, 3,
+			{}, [_fx(K.STAT_MOD, ET.ALLIES, 0.3, 2, 1.0, ST.ATTACK), _fx(K.STAT_MOD, ET.ALLIES, 0.3, 2, 1.0, ST.SPECIAL_ATTACK)]),
+		_skill("Fall Back", "Heal both allies 18% max HP and cleanse their debuffs, then switch out with a benched troop.\nOverdrive (8): cooldown -2.", 2, T.ALL_ALLIES, 4,
+			{"self_switch_after": true, "overdrive_kind": OD.REDUCE_COOLDOWN, "overdrive_cost": 8, "overdrive_value": 2.0},
+			[_fx(K.HEAL, ET.ALLIES, 0.18), _fx(K.CLEANSE, ET.ALLIES, 0.0)]),
 	]))
 	return roster

@@ -338,11 +338,11 @@ func _test_standby_and_retarget() -> void:
 
 func _test_roster_and_passives() -> void:
 	print("[roster + passives]")
-	var squad_a: Array[TroopData] = TroopRegistry.default_squad(0)
-	var squad_b: Array[TroopData] = TroopRegistry.default_squad(1)
-	_check(squad_a.size() == 6 and squad_b.size() == 6, "default squads have 6 troops")
+	var squad_a: Array[TroopData] = TroopRegistry.random_squad(1)
+	var squad_b: Array[TroopData] = TroopRegistry.random_squad(2)
+	_check(squad_a.size() == 6 and squad_b.size() == 6, "random squads have 6 troops")
 	var all: Dictionary[StringName, TroopData] = TroopRegistry.load_all()
-	_check(all.size() == 8, "roster has 8 troops")
+	_check(all.size() >= CombatTypes.DRAFT_BRING, "roster has at least %d troops" % CombatTypes.DRAFT_BRING)
 	var per_arch: Dictionary = {}
 	var special_skills: int = 0
 	for d: TroopData in all.values():
@@ -358,7 +358,7 @@ func _test_roster_and_passives() -> void:
 			special_skills += 1 if s.special else 0
 	_check(special_skills > 0, "some skills are special")
 	for arch in CombatTypes.Archetype.values():
-		_check(per_arch.get(arch, 0) == 2, "2 troops in archetype %s" % CombatTypes.Archetype.keys()[arch])
+		_check(int(per_arch.get(arch, 0)) >= 1, "archetype %s has troops" % CombatTypes.Archetype.keys()[arch])
 
 	# Courier entry passive: +20% SPE and 2 Team Energy on switch-in.
 	var courier: TroopData = all[&"swift_courier"]
@@ -427,7 +427,7 @@ func _ai_step(engine: CombatEngine, ais: Array[AIController]) -> Array[CombatEve
 func _run_ai_match(seed_value: int) -> Dictionary:
 	var engine: CombatEngine = CombatEngine.new(seed_value)
 	var ais: Array[AIController] = [AIController.new(0, seed_value * 3), AIController.new(1, seed_value * 7)]
-	engine.start_preview(TroopRegistry.default_squad(0), TroopRegistry.default_squad(1))
+	engine.start_preview(TroopRegistry.random_squad(1), TroopRegistry.random_squad(2))
 	var picks: Array = [[], []]
 	for side in 2:
 		var p: Array[int] = ais[side].choose_draft(engine.state.team(side).squad)
@@ -480,7 +480,7 @@ func _event_trace(seed_value: int) -> Array[Dictionary]:
 	var engine: CombatEngine = CombatEngine.new(seed_value)
 	var ais: Array[AIController] = [AIController.new(0, 11), AIController.new(1, 13)]
 	var trace: Array[Dictionary] = []
-	for e in engine.start_preview(TroopRegistry.default_squad(0), TroopRegistry.default_squad(1)):
+	for e in engine.start_preview(TroopRegistry.random_squad(1), TroopRegistry.random_squad(2)):
 		trace.append(e.to_dict())
 	for side in 2:
 		for e in engine.submit_draft(side, ais[side].choose_draft(engine.state.team(side).squad)):
@@ -504,7 +504,7 @@ func _test_server_loop() -> void:
 		batches[0] += 1
 		last_snapshot[0] = snapshot)
 	var no_ai: Array[int] = [1]
-	server.start_match(77, TroopRegistry.default_squad(0), TroopRegistry.default_squad(1), no_ai, 0)
+	server.start_match(77, TroopRegistry.random_squad(1), TroopRegistry.random_squad(2), no_ai, 0)
 	var snap: Dictionary = last_snapshot[0]
 	_check(snap["phase"] == CombatTypes.Phase.PREVIEW, "server starts in PREVIEW")
 	_check((snap["teams"][1]["squad"] as Array).size() == 6, "client sees opponent's 6 in team preview")

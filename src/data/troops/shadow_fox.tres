@@ -1,0 +1,67 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_bgq32"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_de5lh"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_68pfq"]
+
+[sub_resource type="Resource" id="Resource_dpec7"]
+script = ExtResource("3_68pfq")
+stat = 2
+magnitude = -0.2
+duration = 2
+chance = 0.3
+
+[sub_resource type="Resource" id="Resource_qcsdc"]
+script = ExtResource("2_de5lh")
+skill_name = "Nip"
+description = "Strike one enemy (85% ATK); 30% chance to lower its DEF by 20% for 2 turns."
+attack_scaling = 0.85
+effects = Array[ExtResource("3_68pfq")]([SubResource("Resource_dpec7")])
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_hyk7h"]
+script = ExtResource("3_68pfq")
+target = 4
+stat = 4
+magnitude = -0.15
+duration = 2
+
+[sub_resource type="Resource" id="Resource_l1hlp"]
+script = ExtResource("2_de5lh")
+skill_name = "Ambush"
+description = "Passive: on switch-in, lower all enemies' SPE by 15% for 2 turns (2-turn internal cooldown)."
+slot = 1
+is_passive = true
+trigger = 1
+cooldown = 2
+target_type = 3
+effects = Array[ExtResource("3_68pfq")]([SubResource("Resource_hyk7h")])
+
+[sub_resource type="Resource" id="Resource_y1ahl"]
+script = ExtResource("2_de5lh")
+skill_name = "Vanishing Strike"
+description = "Strike one enemy (150% ATK, +30% vs debuffed), then switch out with a benched troop.
+Overdrive (12): act first this round."
+slot = 2
+cooldown = 4
+attack_scaling = 1.5
+bonus_vs_debuffed = 0.3
+self_switch_after = true
+overdrive_kind = 3
+overdrive_cost = 12
+
+[resource]
+script = ExtResource("1_bgq32")
+troop_id = &"shadow_fox"
+display_name = "Shadow Fox"
+archetype = 3
+max_hp = 900
+attack = 185
+special_attack = 80
+defense = 90
+special_defense = 85
+speed = 118
+crit_chance = 0.2
+effectiveness = 0.25
+skills = Array[ExtResource("2_de5lh")]([SubResource("Resource_qcsdc"), SubResource("Resource_l1hlp"), SubResource("Resource_y1ahl")])

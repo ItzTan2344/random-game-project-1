@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="TroopData" format=3]
+
+[ext_resource type="Script" path="res://src/data/TroopData.gd" id="1_fh8xl"]
+[ext_resource type="Script" path="res://src/data/SkillData.gd" id="2_8mego"]
+[ext_resource type="Script" path="res://src/data/EffectData.gd" id="3_0u2bc"]
+
+[sub_resource type="Resource" id="Resource_pbqrj"]
+script = ExtResource("2_8mego")
+skill_name = "Void Bolt"
+description = "Strike one enemy (100% SPA)."
+special = true
+attack_scaling = 1.0
+energy_gain = 1
+dual_attack_chance = 0.05
+
+[sub_resource type="Resource" id="Resource_e531u"]
+script = ExtResource("3_0u2bc")
+stat = 3
+magnitude = -0.25
+duration = 2
+chance = 0.7
+
+[sub_resource type="Resource" id="Resource_57dyd"]
+script = ExtResource("2_8mego")
+skill_name = "Null Rift"
+description = "Strike one enemy (140% SPA); 70% chance to lower its SPD by 25% for 2 turns."
+slot = 1
+cooldown = 3
+special = true
+attack_scaling = 1.4
+effects = Array[ExtResource("3_0u2bc")]([SubResource("Resource_e531u")])
+
+[sub_resource type="Resource" id="Resource_4ddms"]
+script = ExtResource("2_8mego")
+skill_name = "Singularity"
+description = "Hit all enemies (130% SPA).
+Overdrive (10): +40% damage."
+slot = 2
+cooldown = 5
+target_type = 1
+special = true
+attack_scaling = 1.3
+overdrive_kind = 4
+overdrive_cost = 10
+overdrive_value = 0.4
+
+[resource]
+script = ExtResource("1_fh8xl")
+troop_id = &"void_arcanist"
+display_name = "Void Arcanist"
+max_hp = 840
+attack = 90
+special_attack = 195
+defense = 80
+special_defense = 95
+speed = 110
+effectiveness = 0.1
+skills = Array[ExtResource("2_8mego")]([SubResource("Resource_pbqrj"), SubResource("Resource_57dyd"), SubResource("Resource_4ddms")])
